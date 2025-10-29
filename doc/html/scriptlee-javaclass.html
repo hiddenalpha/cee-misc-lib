@@ -1,0 +1,197 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Java classfile parser</h2>
+
+    <p>Example usage:</p>
+
+    <code class="lua">
+      <br/>
+      local onBeg, onEnd, onMagic, onClassfileVersion, onConstPoolBegin, onConstPoolEnd,<br/>
+            onConstPoolClassRef, onConstPoolDouble, onConstPoolFieldRef, onConstPoolFloat,<br/>
+            onConstPoolIfaceMethodRef, onConstPoolInteger, onConstPoolInvokeDynamic, onConstPoolLong,<br/>
+            onConstPoolMethodHandle, onConstPoolMethodRef, onConstPoolMethodType, onConstPoolNameAndType,<br/>
+            onConstPoolStrRef, onConstPoolUtf8, onConstPoolModule, onConstPoolPackage, onThisClass,<br/>
+            onSuperClass, onAccessFlags, onIfacesBegin, onIface, onIfacesEnd, onField, onMethodsBegin,<br/>
+            onMethod, onClassAttrsBegin, onGenericAttribute, onGenericAttributeContent, onAnnotRtVisible,<br/>
+            onAnnotKey, onAnnotKeyValPair, main<br/>
+      <br/>
+      local newJavaClassParser = require("scriptlee").newJavaClassParser<br/>
+      <br/>
+      function onBeg( myClosure )<br/>
+           print("onBeg()")<br/>
+      end<br/>
+      function onEnd( myClosure )<br/>
+           print("onEnd()")<br/>
+      end<br/>
+      function onMagic( m, myClosure )<br/>
+          print(string.format("onMagic(0x%02X%02X%02X%02X)",m:byte(1),m:byte(2),m:byte(3),m:byte(4)))<br/>
+      end<br/>
+      function onClassfileVersion( maj, min, myClosure )<br/>
+          print("onVersion("..maj.."."..min..")")<br/>
+      end<br/>
+      function onConstPoolBegin( count, myClosure )<br/>
+          print("ConstPool with "..count.." entries")<br/>
+      end<br/>
+      function onConstPoolEnd( myClosure )<br/>
+          print("onConstPoolEnd()")<br/>
+      end<br/>
+      function onConstPoolClassRef( i, idx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;ClassRef&gt; #"..idx.."")<br/>
+      end<br/>
+      --function onConstPoolDouble( a, b, c, d )<br/>
+      --    error("TODO write doc")<br/>
+      --end<br/>
+      function onConstPoolFieldRef( i, nameIdx, nameAndTypeIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;FieldRef&gt; #"..nameIdx..", #"..nameAndTypeIdx)<br/>
+      end<br/>
+      --function onConstPoolFloat( a, b, c, d )<br/>
+      --    error("TODO write doc")<br/>
+      --end<br/>
+      function onConstPoolIfaceMethodRef( i, nameIdx, nameAndTypeIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;IfaceMethodRef&gt; #"..nameIdx..", #"..nameAndTypeIdx)<br/>
+      end<br/>
+      function onConstPoolInteger( i, intValue, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;Integer&gt; "..intValue)<br/>
+      end<br/>
+      function onConstPoolInvokeDynamic( i, bootstrapMethodAttrIdx, nameAndTypeIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;InvokeDynamic&gt; #"..bootstrapMethodAttrIdx..", #"..nameAndTypeIdx)<br/>
+      end<br/>
+      function onConstPoolLong( i, value, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;Long&gt; "..value)<br/>
+      end<br/>
+      function onConstPoolMethodHandle( i, refKind, refIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;MethodHandle&gt; "..refKind..", #"..refIdx)<br/>
+      end<br/>
+      function onConstPoolMethodRef( i, classIdx, nameAndTypeIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;MethodRef&gt; #"..classIdx..", #"..nameAndTypeIdx.."")<br/>
+      end<br/>
+      function onConstPoolMethodType( i, descrIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;MethodType&gt; #"..descrIdx)<br/>
+      end<br/>
+      function onConstPoolNameAndType( i, nameIdx, typeIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;NameAndType&gt; #"..nameIdx..", #"..typeIdx.."")<br/>
+      end<br/>
+      function onConstPoolStrRef( i, dstIdx, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;StrRef&gt; #"..dstIdx)<br/>
+      end<br/>
+      function onConstPoolUtf8( i, str, myClosure )<br/>
+          print("ConstPool["..i.."] &lt;Utf8&gt; \""..str.."\"")<br/>
+      end<br/>
+      function onConstPoolModule( i, nameIdx, myClosure )<br/>
+          error("TODO write doc")<br/>
+      end<br/>
+      function onConstPoolPackage( i, nameIdx, myClosure )<br/>
+          error("TODO write doc")<br/>
+      end<br/>
+      function onThisClass( nameIdx, myClosure )<br/>
+          print("onThisClass(#"..nameIdx..")")<br/>
+      end<br/>
+      function onSuperClass( nameIdx, myClosure )<br/>
+          print("onSuperClass(#"..nameIdx..")")<br/>
+      end<br/>
+      function onAccessFlags( accessFlags, myClosure )<br/>
+          print(string.format("onAccessFlags(0x%04X)",accessFlags))<br/>
+      end<br/>
+      function onIfacesBegin( count, myClosure )<br/>
+          print("onIfacesBegin("..count..")")<br/>
+      end<br/>
+      function onIface( i, classIdx, myClosure )<br/>
+          print("onIface("..i..", #"..classIdx..")")<br/>
+      end<br/>
+      function onIfacesEnd( myClosure )<br/>
+          print("onIfacesEnd()")<br/>
+      end<br/>
+      function onField( iField, accessFlags, nameIdx, descrIdx, numAttrs, myClosure )<br/>
+          print(string.format("onField(0x%04X, #%d, #%d, %d)",accessFlags,nameIdx,descrIdx,numAttrs))<br/>
+      end<br/>
+      function onMethodsBegin( numMethods, myClosure )<br/>
+          print("onMethodsBegin("..numMethods..")")<br/>
+      end<br/>
+      function onMethod( accessFlags, nameIdx, descrIdx, myClosure )<br/>
+          print(string.format("onMethod(0x%04X, #%d, #%d)",accessFlags,nameIdx,descrIdx))<br/>
+      end<br/>
+      function onClassAttrsBegin( numAttrs, myClosure )<br/>
+          print("onClassAttrsBegin("..numAttrs..")")<br/>
+      end<br/>
+      function onGenericAttribute( nameIdx, bodyLength, myClosure )<br/>
+          print("onGenericAttribute("..nameIdx..", "..bodyLength..")")<br/>
+      end<br/>
+      function onGenericAttributeContent( str, myClosure )<br/>
+          print("onGenericAttributeContent( bytes{len="..str:len().."} )")<br/>
+      end<br/>
+      function onAnnotRtVisible( typeIdx, numKeyValPairs, myClosure )<br/>
+          print("onAnnotRtVisible(#"..typeIdx..", "..numKeyValPairs..")")<br/>
+      end<br/>
+      --function onAnnotKey()<br/>
+      --    error("TODO write doc")<br/>
+      --end<br/>
+      function onAnnotKeyValPair()<br/>
+          error("TODO write doc")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = {}<br/>
+          local parser = newJavaClassParser({<br/>
+              cls = myClosure,<br/>
+              onBeg = onBegin,<br/>
+              onEnd = onEnd,<br/>
+              onMagic = onMagic,<br/>
+              onClassfileVersion = onClassfileVersion,<br/>
+              onConstPoolBegin = onConstPoolBegin,<br/>
+              onConstPoolEnd = onConstPoolEnd,<br/>
+              onConstPoolClassRef = onConstPoolClassRef,<br/>
+              --onConstPoolDouble = onConstPoolDouble,<br/>
+              onConstPoolFieldRef = onConstPoolFieldRef,<br/>
+              --onConstPoolFloat = onConstPoolFloat,<br/>
+              onConstPoolIfaceMethodRef = onConstPoolIfaceMethodRef,<br/>
+              onConstPoolInteger = onConstPoolInteger,<br/>
+              onConstPoolInvokeDynamic = onConstPoolInvokeDynamic,<br/>
+              onConstPoolLong = onConstPoolLong,<br/>
+              onConstPoolMethodHandle = onConstPoolMethodHandle,<br/>
+              onConstPoolMethodRef = onConstPoolMethodRef,<br/>
+              onConstPoolMethodType = onConstPoolMethodType,<br/>
+              onConstPoolNameAndType = onConstPoolNameAndType,<br/>
+              onConstPoolStrRef = onConstPoolStrRef,<br/>
+              onConstPoolUtf8 = onConstPoolUtf8,<br/>
+              onConstPoolModule = onConstPoolModule,<br/>
+              onConstPoolPackage = onConstPoolPackage,<br/>
+              onThisClass = onThisClass,<br/>
+              onSuperClass = onSuperClass,<br/>
+              onAccessFlags = onAccessFlags,<br/>
+              onIfacesBegin = onIfacesBegin,<br/>
+              onIface = onIface,<br/>
+              onIfacesEnd = onIfacesEnd,<br/>
+              onField = onField,<br/>
+              onMethodsBegin = onMethodsBegin,<br/>
+              onMethod = onMethod,<br/>
+              onClassAttrsBegin = onClassAttrsBegin,<br/>
+              onGenericAttribute = onGenericAttribute,<br/>
+              onGenericAttributeContent = onGenericAttributeContent,<br/>
+              onAnnotRtVisible = onAnnotRtVisible,<br/>
+              --onAnnotKey = onAnnotKey,<br/>
+              onAnnotKeyValPair = onAnnotKeyValPair,<br/>
+          })<br/>
+          -- Read 1st arg as a classfile and pump it into the parser.<br/>
+          local src = arg[1] and io.open(arg[1], "rb") or nil<br/>
+          if not src then<br/>
+              print("ERROR: Failed to open file from 1st arg: "..(arg[1]or"nil")) return<br/>
+          end<br/>
+          while true do<br/>
+              local buf = src:read(65536)<br/>
+              if not buf then break end<br/>
+              parser:write(buf)<br/>
+          end<br/>
+          parser:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+  </body>
+</html>
+

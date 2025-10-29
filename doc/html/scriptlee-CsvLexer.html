@@ -1,0 +1,106 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>CeeMiscLib - Scriptlee - CsvLexer</h2>
+
+    <p>You give a shit on OutOfMemory issues? If so, the simplified API
+    is the perfect match for you:</p>
+
+    <code class="lua">
+      <br/>
+      local onCsvRecord, onCsvEnd, main<br/>
+      <br/>
+      local newCsvRecrdInStream = require("scriptlee").newCsvRecrdInStream<br/>
+      <br/>
+      function onCsvRecord( recrd, myClosure )<br/>
+          print("Record:", recrd[1], recrd[2], recrd[3], recrd[4])<br/>
+      end<br/>
+      function onCsvEnd( myClosure )<br/>
+          print("End of CSV reached\n")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { whateverINeed = 42 }<br/>
+          local csvRecrdStream = newCsvRecrdInStream{<br/>
+              cls = myClosure,<br/>
+              delimCol = ";",<br/>
+              onRecord = onCsvRecord,<br/>
+              onEnd = onCsvEnd,<br/>
+          }<br/>
+          csvRecrdStream:write('c;user;email;note\r\n')<br/>
+          csvRecrdStream:write('r;fritz;"f@example.com";Bescht Kolleg\r\n')<br/>
+          csvRecrdStream:write('r;hausi;"h@example.com";Ou der bescht Kolleg\r\n')<br/>
+          csvRecrdStream:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+
+    <p>Need more control or better resilience against OutOfMemory
+    issues? Use the regular API:</p>
+
+    <code class="lua">
+      <br/>
+      local onCsvEntityBegin, onCsvEntityEnd, onCsvAttributeBegin, onCsvAttributeEnd,<br/>
+            onCsvChunkWithoutQuoting, onCsvChunkFromInsideQuotes, onCsvEndOfDocument, main<br/>
+      <br/>
+      local newCsvLexer = require("scriptlee").newCsvLexer<br/>
+      <br/>
+      function onCsvEntityBegin( myClosure )<br/>
+          myClosure.rowNum = myClosure.rowNum + 1<br/>
+          myClosure.colNum = 0<br/>
+          io.write("Begin-of-Row-".. myClosure.rowNum ..".\n")<br/>
+      end<br/>
+      function onCsvEntityEnd( myClosure )<br/>
+          io.write("End-of-Row-".. myClosure.rowNum ..".\n")<br/>
+      end<br/>
+      function onCsvAttributeBegin( myClosure )<br/>
+          myClosure.colNum = myClosure.colNum + 1<br/>
+          io.write("Begin-of-column-".. myClosure.rowNum .."x".. myClosure.colNum ..".\n")<br/>
+      end<br/>
+      function onCsvAttributeEnd( myClosure )<br/>
+          io.write("End-of-column-".. myClosure.rowNum .."x".. myClosure.colNum ..".")<br/>
+          io.write(" Value is -&gt; ".. myClosure.value .."\n")<br/>
+          myClosure.value = ""<br/>
+      end<br/>
+      function onCsvChunkWithoutQuoting( buf, myClosure )<br/>
+          myClosure.value = myClosure.value .. buf<br/>
+      end<br/>
+      function onCsvChunkFromInsideQuotes( buf, myClosure )<br/>
+          myClosure.value = myClosure.value .. buf<br/>
+      end<br/>
+      function onCsvEndOfDocument( myClosure )<br/>
+          io.write("End-of-document.\n")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { rowNum = 0, colNum = 0, value = "", }<br/>
+          local parser = newCsvLexer{<br/>
+              cls = myClosure,<br/>
+              delimCol = ";",<br/>
+              onEntityBeg = onCsvEntityBegin,<br/>
+              onEntityEnd = onCsvEntityEnd,<br/>
+              onAttrBeg = onCsvAttributeBegin,<br/>
+              onAttrEnd = onCsvAttributeEnd,<br/>
+              onChunkNaked = onCsvChunkWithoutQuoting,<br/>
+              onChunkQuoted = onCsvChunkFromInsideQuotes,<br/>
+              onEnd = onCsvEndOfDocument<br/>
+          }<br/>
+          parser:write("ID;firstname;la")<br/>
+          parser:write("stname\n1;Peter;Parker\n2")<br/>
+          parser:write(";Steve;Meyer")<br/>
+          parser:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    <code>
+
+  </body>
+</html>
+

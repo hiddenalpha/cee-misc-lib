@@ -1,0 +1,105 @@
+
+-- TODO move Promise impl to C.
+-- TODO make html.
+warn("@on")
+
+local reactor = assert(require("scriptlee").reactor)
+local objectSeal = assert(require("scriptlee").objectSeal)
+local log = io.stderr
+
+local mod = {}
+
+
+function mod.main()
+  local this = objectSeal({})
+  reactor.startOrExecute( this, mod.run )
+end
+
+
+function mod.run( this )
+    log:write( "TEST: Create a promise\n" )
+    local promise = mod.Promise_new(this, function( fulfill, reject, this )
+        log:write( "TEST: Work inside promise (and go async)\n" )
+        reactor.execute(this, function( this )
+            local ok, ex = xpcall(function( this )
+                log:write( "TEST: Resolve the promise\n" )
+                fulfill( "one", "two", "three" )
+                --error( "UppsiSalat" )
+            end, debug.traceback, this)
+            if not ok then reject(ex) end
+        end)
+        log:write( "TEST: Return worker()\n" )
+    end)
+    assert( promise )
+    log:write( "TEST: Awaiting promise ...\n" )
+    local a,b,c = mod.Promise_await( promise )
+    log:write( "TEST: Promise is done: "..(a or"nil") ..", "..(b or"nil")..", "..(c or"nil").."\n" )
+    log:write( "TEST: Return from run()\n" )
+end
+
+
+-------------------------------------------------------------------------------
+-- Promise
+-------------------------------------------------------------------------------
+
+function mod.Promise_new( cls, worker )
+    local p = objectSeal({
+        cls = cls,
+        co = false,
+        worker = worker,
+        isError = false,
+        isDone = false,
+        retVals = false,
+    })
+    cls = nil; worker = nil
+    p.co = coroutine.create(function()
+        local function fulfill(...)
+            if p.isDone or p.isError then warn("Promise already resolved"); return end
+            p.retVals = table.pack(...)
+            p.isDone = true
+        end
+        local function reject(...)
+            if p.isDone or p.isError then warn("Promise already resolved"); return end
+            p.retVals = table.pack(...)
+            p.isError = true
+        end
+        local ret = p.worker( fulfill, reject, cls )
+    end)
+    reactor.startOrExecute(nil, function()
+        local ok, msg = coroutine.resume( p.co )
+        if not ok then print("E_e9a638c2c126996c9533513fdd1793c1") error(msg) end
+        local currCo, isMain = coroutine.running()
+        local status = coroutine.status(currCo)
+        if false then
+        elseif isMain then
+            return
+        elseif status=="running" then
+            return
+        else
+            print("E_143a13d2f09154eb27e6585cefe6d3bf") error( "Status is '"..status.."' isMain="..(isMain and"1"or"0").."" )
+        end
+    end)
+    return p
+end
+
+
+function mod.Promise_await( p )
+    assert( p )
+    local co, isMain = coroutine.running()
+    if isMain then
+        error( "MUST NOT call Promise::await() on main coroutine. Enter a reactor task first." )
+    end
+    while true do
+        -- TODO Prevent infinite-loop in case a promise never gets resolved.
+        if p.isError then
+            return table.unpack(p.retVals)
+        elseif p.isDone then
+            return nil, table.unpack(p.retVals)
+        end
+        coroutine.yield()
+    end
+end
+
+
+mod.main()
+

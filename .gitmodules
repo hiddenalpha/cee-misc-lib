@@ -1,0 +1,7 @@
+[submodule "qntan"]
+	path = sub/qntan
+	url = http://git.hiddenalpha.ch/qntan.git
+	#url = git-public@hiddenalpha.ch:/~/scm/qntan.git
+	#url = andreas@pi-one.local:/~/scm/qntan.git
+	#url = https://github.com/hiddenalpha/qntan.git
+

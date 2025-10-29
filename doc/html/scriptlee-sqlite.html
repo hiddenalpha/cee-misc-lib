@@ -1,0 +1,53 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - SQLite</h2>
+
+    <code class="lua">
+      <br/>
+      local newSqlite = require("scriptlee").newSqlite<br/>
+      local sqlite, stmt<br/>
+      <br/>
+      -- connect to db<br/>
+      sqlite = newSqlite{<br/>
+          database = "./tmp/lua-sqlite.db",<br/>
+      }<br/>
+      --sqlite:enhancePerf()<br/>
+      <br/>
+      -- create some content<br/>
+      sqlite:prepare( "CREATE TABLE IF NOT EXISTS Example ("<br/>
+          .." id INTEGER PRIMARY KEY,"<br/>
+          .." text TEXT)"<br/>
+          ):execute()<br/>
+      stmt = sqlite:prepare( "INSERT INTO Example"<br/>
+          .." (text) VALUES ($text)"<br/>
+          )<br/>
+      stmt:reset()<br/>
+      stmt:bind( "$text", "Lorem ipsum dolor ... you know it." )<br/>
+      stmt:execute()<br/>
+      print( "inserted id ".. sqlite:lastInsertRowid() )<br/>
+      stmt:close() -- optional. GC will do, if we can affort to wait for it.<br/>
+      <br/>
+      -- do some queries<br/>
+      local stmt = db:prepare("SELECT * FROM sqlite_schema"<br/>
+          --.." WHERE type = 'table'"<br/>
+          --.." AND name NOT LIKE 'sqlite_%'"<br/>
+          --.." ORDER BY name"<br/>
+          .."")<br/>
+      local rs = stmt:execute()<br/>
+      while rs:next() do<br/>
+          print("ResultSet")<br/>
+          for colnr=1, rs:numCols() do<br/>
+              print("Col", rs:type(colnr), rs:name(colnr), rs:value(colnr))<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      sqlite:close() -- optional. GC will do, if we can affort to wait for it.<br/>
+    </code>
+
+  </body>
+</html>
+

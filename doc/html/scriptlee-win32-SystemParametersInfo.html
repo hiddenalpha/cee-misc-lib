@@ -1,0 +1,19 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Win32 - SystemParametersInfo</h2>
+
+    <code class="lua">
+    <br/>
+    local win32 = require("scriptlee").win32<br/>
+    <br/>
+    print( "Screensaver activated:", win32.SystemParametersInfo(win32.SPI_GETSCREENSAVEACTIVE) )<br/>
+    print( "Screensaver  currently running:", win32.SystemParametersInfo(win32.SPI_GETSCREENSAVERRUNNING) )<br/>
+    </code>
+
+  </body>
+</html>
+

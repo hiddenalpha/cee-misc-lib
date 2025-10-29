@@ -1,0 +1,111 @@
+
+#define Garbage_Closure void*
+#include <Garbage_Bootstrap.h>  /* only needed because we call ctor from here. */
+/*#include <Garbage.h>*/ /* if we don't need ctor, we would include this one instead. */
+
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+
+
+typedef  struct App  App;
+
+
+struct App {
+    struct Garbage_Env **env;
+    struct Garbage_Mallocator **mallocator;
+    struct Garbage_DollarParser **dollarParser;
+    struct Garbage_DollarParser_Mentor *dollarParserMentor;
+    int exitCode;
+    void *memBlockToUse[SIZEOF_struct_Garbage_Env/sizeof(void*)];
+};
+
+
+static void onChunk(
+    struct Garbage_DollarParser_Mentor**pimpl, char const*restrict buf, int buf_len,
+    void(*onDone)(void*arg), void*arg
+){
+    //App *app = container_of(pimpl, App, dollarParserMentor);
+    printf("onChunk     \"%.*s\"\n", buf_len, buf);
+    onDone(arg);
+}
+
+
+static void onVariable(
+    struct Garbage_DollarParser_Mentor**pimpl, char const*restrict buf, int buf_len,
+    void(*onDone)(void*arg), void*arg
+){
+    //App *app = container_of(pimpl, App, dollarParserMentor);
+    printf("onVariable  \"%.*s\"\n", buf_len, buf);
+    onDone(arg);
+}
+
+
+static void onEnd( struct Garbage_DollarParser_Mentor**pimpl ){
+    //App *app = container_of(pimpl, App, dollarParserMentor);
+    printf("onEnd\n");
+}
+
+
+static void onCloseDone( int retval, void*app_ ){
+    App *app = app_;
+    if( retval < 0 ){
+        printf("Whops, closeSnk failed: %s\n", strerror(-retval));
+        app->exitCode = 1;
+        return;
+    }
+}
+
+
+static void onWriteDone( int retval, void*app_ ){
+    App *app = app_;
+    if( retval < 0 ){
+        printf("Whops, write failed: %s\n", strerror(-retval));
+        app->exitCode = 1;
+        return;
+    }
+    (*app->dollarParser)->closeSnk(app->dollarParser, onCloseDone, app_);
+}
+
+
+static struct Garbage_DollarParser** newDollarParser( App*app ){
+    assert(app->dollarParser == NULL);
+    static struct Garbage_DollarParser_Mentor dollarParserMentorVt = {
+        .onChunk = onChunk,
+        .onVariable = onVariable,
+        .onEnd = onEnd,
+    };
+    app->dollarParserMentor = &dollarParserMentorVt;
+    struct Garbage_DollarParser **ret;
+    ret = Garbage_newDollarParser(&(struct Garbage_DollarParser_Opts){
+        .mentor = &app->dollarParserMentor,
+        .mallocator = app->mallocator,
+    });
+    return ret;
+}
+
+
+static void run( void*app_ ){
+    App *app = app_;
+    app->dollarParser = newDollarParser(app);
+    char const *stuffToScan = "My name is ${name} and we are using ${tech}. Bye.";
+    (*app->dollarParser)->write(
+        app->dollarParser, stuffToScan, strlen(stuffToScan), onWriteDone, app_);
+}
+
+
+static void initEnv( App*app ){
+    app->env = Garbage_newEnv(app->memBlockToUse, sizeof app->memBlockToUse);
+    app->mallocator = Garbage_newMallocator();
+}
+
+
+int main(){
+    struct App *app = &(struct App){0};
+    initEnv(app);
+    (*app->env)->enqueBlocking(app->env, run, app);
+    (*app->env)->runUntilDone(app->env);
+    return app->exitCode;
+}
+
+

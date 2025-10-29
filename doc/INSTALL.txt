@@ -1,0 +1,134 @@
+
+INSTALL
+================
+
+Regular install
+----------------
+
+  lua ./configure.lua --toolchain debian
+  make deps-init deps
+  make
+  make install
+
+
+Dependency build (eg after build env is freshly setup)
+--------------------------------
+
+  && make deps-src \
+  && make deps-init `# HINT: use dry-run and apk-add manually if apt not avail`  \
+  && make deps \
+
+
+Example Build configs
+---------------------
+
+ && `# debug (my default for now)` \
+ && export CFLAGS="--std=c99 -fPIC -Wall -Wextra -Werror -Wfatal-errors -fmax-errors=1 -ffunction-sections -fdata-sections -O0 -g -DPROJECT_VERSION=${PROJECT_VERSION:?} -D__STATIC_INLINE=static/**/inline -DFALL=__attribute__\(\(fallthrough\)\)" \
+ && export LDFLAGS="-Wl,--no-demangle,--fatal-warnings,--gc-sections,--as-needed,-Lbuild/lib,-Limport/lib" \
+ && export SUFX=.G \
+
+ && `# debug, strip, small` \
+ && export CFLAGS="--std=c99 -fPIC -Wall -Wextra -Werror -Wfatal-errors -fmax-errors=1 -ffunction-sections -fdata-sections -Os -s -DPROJECT_VERSION=${PROJECT_VERSION:?} -D__STATIC_INLINE=static/**/inline -DFALL=__attribute__\(\(fallthrough\)\)" \
+ && export LDFLAGS="-Wl,--no-demangle,--fatal-warnings,--gc-sections,--as-needed,-Lbuild/lib,-Limport/lib" \
+ && export SUFX=.G \
+
+ && `# release` \
+ && export CFLAGS="--std=c99 -fPIC -Wall -Wextra -Werror -Wfatal-errors -fmax-errors=1 -Os -s -DPROJECT_VERSION=${PROJECT_VERSION:?} -D__STATIC_INLINE=static/**/inline -DFALL=__attribute__\(\(fallthrough\)\)" \
+ && export LDFLAGS="-Wl,--no-demangle,--fatal-warnings,--gc-sections,--as-needed,-Lbuild/lib,-Limport/lib" \
+ && export SUFX= \
+
+
+
+Andis Build-All command (devuan)
+--------------------------------
+
+ && (true \
+ && export PROJECT_VERSION=$(date -u +0.0.0-%Y%m%d.%H%M%S) \
+ && export PROJECT_VERSION=$(git describe --tags|sed -E 's_^v__') \
+
+ && export TOOLCHAIN=devuan && export BINEXT= \
+ && export LOGT_ON=0 \
+ && lua configure.lua --toolchain ${TOOLCHAIN:?} \
+ && make -e clean \
+ && make -e -j"${NPROC:-$(nproc)}" doc link \
+ && make -e -j"${NPROC:-$(nproc)}" dist \
+ && make -e -j"${NPROC:-$(nproc)}" test \
+ && echo ERROR: $? \
+ && true) \
+
+
+
+Andis Build-All command (windoof)
+---------------------------------
+
+TODO remove -Wno-error=format=
+
+ && (true \
+ && export PROJECT_VERSION=$(date -u +0.0.0-%Y%m%d.%H%M%S) \
+ && export PROJECT_VERSION=$(git describe --tags|sed -E 's_^v__') \
+
+ && export CFLAGS="$CFLAGS -Wno-error=format= -Wno-error=cpp" \
+ && export LOGT_ON=0 \
+ && lua configure.lua --toolchain windoof \
+ && make -e clean \
+ && make -e -j"${NPROC:-$(nproc)}" doc link \
+ && make -e -j"${NPROC:-$(nproc)}" dist \
+ && `# cannot run tests which are cross-compiled :( ` \
+ && echo ERROR: $? \
+ && true) \
+
+
+
+Andis Build-All command (raspi)
+--------------------------------
+
+ && (true \
+ && export PROJECT_VERSION=$(date -u +0.0.0-%Y%m%d.%H%M%S) \
+ && export PROJECT_VERSION=$(git describe --tags|sed -E 's_^v__') \
+
+ && export CC=aarch64-linux-gnu-gcc \
+ && export LD=aarch64-linux-gnu-gcc \
+ && export AR=aarch64-linux-gnu-ar \
+ && export LOGT_ON=0 \
+ && lua configure.lua --toolchain devuan \
+ && make -e clean \
+ && make -e -j"${NPROC:-$(nproc)}" doc link \
+ && make -e -j"${NPROC:-$(nproc)}" dist \
+ && `# cannot run tests which are cross-compiled :( ` \
+ && echo ERROR: $? \
+ && true) \
+
+
+
+Get the stuff out the vm
+------------------------
+
+ && for vm in vm-2 vm-3 vm-4 ;do true \
+   && ssh $vm -T 'cd cee-misc-lib/dist && md5sum -b *+*' >> sum \
+   && ssh $vm -T 'cd cee-misc-lib/dist && tar c *+*' | tar x \
+   ;done \
+
+
+
+Strip for publication
+---------------------
+
+  && publDir=../cee-misc-lib-public \
+  && origDir=$(pwd) \
+  && refToRelease=master \
+  \
+  && (true \
+  && cd "${publDir:?}" \
+  && gitDescr="$(cd "${origDir:?}" && git describe --tags)" \
+  && git co v0.0.0 \
+  && if test -n "$(git status --porcelain)" ;then printf 'FAIL:	Worktree dirty!\n' && false ;fi \
+  && (cd ${origDir:?} \
+      && git archive "${refToRelease:?}" -- \
+          CHANGELOG* doc .gitignore .gitmodules include LICENSE* README* sub \
+     ) | tar x \
+  && git add . \
+  && git commit -m "${gitDescr:?}" \
+  && true) \
+
+
+

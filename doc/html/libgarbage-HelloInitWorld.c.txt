@@ -1,0 +1,124 @@
+
+/* include definitions for library exxported symbols. This include is
+ * only necessary in compilation units which need access to the
+ * exported library symbols. Eg only the file that performs the wiring up
+ * of the environment context. Every other file should include
+ * "Garbage.h" only. As this example has upwiring and code in the same file,
+ * it needs bootstrap to have definitions for the module constructors. */
+#define Garbage_Closure void*
+#include <Garbage_Bootstrap.h>
+/*#include <Garbage.h>*/
+
+
+struct App {
+    struct Garbage_Env **env;
+//    struct Garbage_Mallocator **mallocator;
+//    struct Garbage_IoMultiplexer **ioMultiplexer;
+//    struct Garbage_ThreadPool **ioWorker;
+//    struct Garbage_CsvParser **csvParser;
+//    struct Garbage_SocketMgr **socketMgr;
+//    struct Garbage_TlsClient **tls;
+//    struct Garbage_Networker **networker;
+//    struct Garbage_JsonParser **jsonParser;
+    int exitCode;
+    void *memBlockToUse[SIZEOF_struct_Garbage_Env/sizeof(void*)];
+};
+
+
+static void run( void*app_ ){
+    App *app = app_;
+    printf("env is now ready-to-use @ %p\n", app);
+}
+
+
+static void initEnv( App*app ){
+    /* This is the place to wire-up the instances needed to run the app. Likely
+     * most apps only will need SOME modules. Here are some exmaples
+     * listed which can (hopefully) be copy-pasted and then adapted to
+     * your applications needs.
+     * BTW: There is no need to use the implementation provided by the library.
+     * Everything is fully virtual. So you can plug your custom impls in for
+     * whatever interface you want a custom impl. */
+
+    app->env = Garbage_newEnv(app->memBlockToUse, sizeof app->memBlockToUse);
+
+    //app->mallocator = Garbage_newMallocator();
+
+    //app->ioMultiplexer = Garbage_newIoMultiplexer(app->env, &(struct Garbage_IoMultiplexer_Opts){
+    //    .mallocator = app->mallocator,
+    //});
+    //(*ioMultiplexer)->start(app->ioMultiplexer);
+
+    //app->ioWorker = Garbage_newThreadPool(&(struct Garbage_ThreadPool_Opts){
+    //    .numThrds = 8,
+    //    .mallocator = app->mallocator,
+    //});
+    //(*app->ioWorker)->start(app->ioWorker);
+
+    //static struct Garbage_CsvParser_Mentor csvMentor = {
+    //    .onCsvDocEnd   = , // void(*)(Garbage_Closure)
+    //    .onEntityBeg   = , // void(*)(Garbage_Closure)
+    //    .onEntityEnd   = , // void(*)(Garbage_Closure)
+    //    .onAttrBeg     = , // void(*)(Garbage_Closure)
+    //    .onAttrEnd     = , // void(*)(Garbage_Closure)
+    //    .onChunkNaked  = , // void(*)(const char*buf, int buf_len, Garbage_Closure)
+    //    .onChunkQuoted = , // void(*)(const char*buf, int buf_len, Garbage_Closure)
+    //};
+    //app->csvParser = Garbage_newCsvParser(
+    //    app->env, app->mallocator, &csvMentor, app);
+
+    //app->socketMgr = Garbage_newSocketMgr(
+    //    app->env, &(struct Garbage_SocketMgr_Opts){
+    //        //.reuseaddr = 0, // WARN: Keep this zero for production!!
+    //        .mallocator = app->mallocator,
+    //        .ioMultiplexer = app->ioMultiplexer,
+    //        .blockingIoWorker = app->ioWorker,
+    //    });
+
+    //static struct Garbage_TlsClient_Mentor tlsClientMentor = {
+    //    .pushIoTask = ,
+    //    .onError = ,
+    //};
+    //app->tls = Garbage_newTlsClient(
+    //    app->env, &tlsClientMentor, app, &(struct Garbage_TlsClient_Opts){
+    //        //.peerHostname = set this for hostname verification,
+    //        .mallocator = app->mallocator,
+    //        .socketMgr = app->socketMgr, // <- Underlying socket, which TLS will use for transport.
+    //        .ioWorker = app->ioWorker,
+    //    });
+
+    //app->networker = Garbage_newNetworker(
+    //    &(struct Garbage_Networker_Opts){
+    //        .mallocator = app->mallocator,
+    //        .ioWorker = app->ioWorker,
+    //    });
+
+    //static struct Garbage_JsonParser_Mentor jsonMentor = {
+    //    .pushCpuTask = ,
+    //    .onJsonObjBeg = ,
+    //    .onJsonObjEnd = ,
+    //    .onJsonArrBeg = ,
+    //    .onJsonArrEnd = ,
+    //    .onJsonDocEnd = ,
+    //    .onJsonStringKeyChunk = ,
+    //    .onJsonNull = ,
+    //    .onJsonNumber = ,
+    //    .onJsonStringChunk = ,
+    //};
+    //app->jsonParser = Garbage_newJsonParser(
+    //    app->env, app->mallocator, &jsonMentor, app);
+
+}
+
+
+int main(){
+    struct App *app = &(struct App){
+        0,
+    };
+    initEnv(app);
+    (*app->env)->enqueBlocking(app->env, run, app);
+    (*app->env)->runUntilDone(app->env);
+    return app->exitCode;
+}
+
+
