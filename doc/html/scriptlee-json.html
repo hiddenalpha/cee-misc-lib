@@ -1,0 +1,89 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - JSON</h2>
+
+    <p>Decode</p>
+
+    <code class="lua">
+      <br/>
+      local parseJSON = require("scriptlee").parseJSON<br/>
+      <br/>
+      function main()<br/>
+          local exampleJsonInput = [========[<br/>
+            {<br/>
+              "firstname": "Peter",<br/>
+              "lastname":  "Smith",<br/>
+              "groups":  [ "lpadmin", "postmaster", "hero" ]<br/>
+            }<br/>
+          ]========]<br/>
+          local peter = parseJSON(exampleJsonInput)<br/>
+          print("\npeter:")<br/>
+          for k,v in pairs(peter) do<br/>
+              print("   '- ", k, v)<br/>
+          end<br/>
+          print()<br/>
+          print("peter.firstname -&gt; ", peter.firstname)<br/>
+          print("peter.firstname:type() -&gt; ", peter.firstname:type())<br/>
+          print("peter.firstname:value() -&gt; ", peter.firstname:value())<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+    <p>Encode</p>
+
+    <code class="lua">
+      <br/>
+      local newJsonEncoder = require("scriptlee").newJsonEncoder<br/>
+      <br/>
+      function main()<br/>
+          local yourState = {}<br/>
+          local enc = newJsonEncoder{<br/>
+              cls = yourState,<br/>
+              onChunk = onJsonChunk,<br/>
+              onEnd = onJsonEnd,<br/>
+          }<br/>
+          enc:reset()<br/>
+          enc:objBeg()<br/>
+          enc:key("id")<br/>
+          enc:number(42)<br/>
+          enc:key("name")<br/>
+          enc:string("foo_whatever_bar", 5, 8)<br/>
+          enc:key("props")<br/>
+          enc:arrBeg()<br/>
+          enc:string("elem one")<br/>
+          enc:number(7)<br/>
+          enc:arrEnd()<br/>
+          enc:objEnd()<br/>
+          enc:flush()<br/>
+          -- in some use-cases on may just encode an object tree:<br/>
+          enc:wholeObj({ id = 42, name = "Blubb", })<br/>
+          -- lua has no arrays. Everything is just a table. To encode arrays properly,<br/>
+          -- we have to pass a function, which can decide if a table has to be encoded as<br/>
+          -- an array.<br/>
+          function isArray(obj) return obj[1] end<br/>
+          enc:wholeObj({ elems = [1,2,3] }, isArray)<br/>
+          -- no matter which mechanic got chosen, flush has to be called.<br/>
+          enc:flush()<br/>
+      end<br/>
+      <br/>
+      function onJsonChunk( chunk, yourState )<br/>
+          io.stdout:write(chunk)<br/>
+      end<br/>
+      <br/>
+      function onJsonEnd( yourState )<br/>
+          io.stdout:write("\n")<br/>
+          io.stderr:write("DONE :) Json written to stdout\n")<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+    </code>
+
+  </body>
+</html>
+

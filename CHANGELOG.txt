@@ -1,0 +1,93 @@
+
+
+## ____-__-__ - __________
+
+- Rename 'struct GarbageEnv' to 'struct Garbage_Env'.
+- Refactor "Garbage_Bloat.h" to "Garbage_Bootstrap.h"
+- Refactor large parts of "Garbage.h" api
+- Throw factory methods out of Env and make them standalone ctors instead.
+- Refactor libgrabage more towards full-virtual internally.
+- Refactor HttpClientReq.
+- Fix bunch of bugs in HttpParser.
+- Fix tonns of bugs in HttpServer.
+- Replace libgarbage "Getaddrinfo.c" by "Networker.c"
+- Impl 'Env_isEvLoopThread'
+- Impl 'signal' for child processes.
+- Impl DollarParser.
+- Impl 'PoolConnection'.
+- Impl HshTbl (WARN: buggy).
+- Drop unused "ConnectionPool.c"
+- Introduce Memory Arenas.
+- Introduce 'exchange-appendToDbByCsv'
+- Officialize API of some CAMT tools.
+- Enhanced accounting tools.
+- Introduce 'RenderApiWIP.h'
+- Impl sqlite output for JavaDepsScan.
+- Impl JsonReader.
+- Introduce exchange helpers.
+- Impl DollarParser.
+- And maaaany more things ...
+
+
+
+
+## 2024-09-20 - 0.0.5-320-ga5c0dd2
+
+- Cleanup unused stuff in build.
+- Enhance raspi build.
+
+Private:
+- Homeauto Brgmt grafana-test
+- (Acc) Fix some scripts
+- (Garb) Fix some disastrous HttpClient bug.
+
+
+
+## 2024-09-08 - 0.0.5-306-g99d785d
+
+- (pcapit) Impl DLT_EN10MB. Fix some other bugs.
+- Enable dlopen in lua, for scriptlee (wdoof not working).
+- Add verion on CsvToBmp help page.
+- (Garb) Changed A LOT to hopefully make TLS more async.
+- (Garb) Prototype how to rewrite scriptlee through libgarbage.
+- Fix bug in TlsClient.
+- Fix user chosen seed to NOT be overridden.
+
+Private:
+- (Acc) Add exchg support for EUR.
+- (Acc) map more xau cases.
+- (Acc) Fix misc calc bugs. Account Stmt looks ways better now.
+- (Acc) Create a slite merge script.
+- (Acc) Init a lua script to merge sqlite DBs (WIP)
+
+
+
+## 2024-08-20 - 0.0.5-277-g07a72f9
+
+- (DevUrandom) Enhance seeds
+- (DevUrandom) Allow mubers beyond INT_MAX.
+- (Garb) cleanup.
+- (Garb) TLS socket 'seems' working (but still has TODOs in there)
+- (Garb) Add debug logging for mbedtls.
+- (Garb) continue async windoof file IO impl.
+- (Garb) Continue IoMultiplexing. Moved code, but no actual multiplexing yet.
+
+
+
+## 2024-08-04 - 0.0.5-253-g65651a8
+
+- (CsvToBmp) Add to distribution.
+- Make TlsClient to be a SocketMgr.
+- (garb) Begun to impl HttpClient windoof stuff.
+- (garb) Fix some ThreadPool ringbuffer bugs.
+- (garb) HttpClient 'seems' to work.
+- Introduce GarbageHttpServer (WARN: NOT prod ready yet!)
+- (pthread) Take lock to fix race-condition.
+
+Private:
+- (acc) Introduce BookKeeper.c with fancy prompt.
+- (acc) small enhance in xaugr parse. (problem: xau other booking account not recognizable)
+- (acc) Begun impl rfXaugr parsing (WIP)
+- (acc) Continue enhancing accounting Lua scripts.
+
+

@@ -1,0 +1,98 @@
+#if 0
+
+  Showcase how to decorate a Mallocator for custom allocation tracing.
+
+  && CC=gcc \
+  && LD=gcc \
+  && BINEXT= \
+  && CFLAGS="-Wall -Werror -pedantic -Os -s -Iimport/include" \
+  && LDFLAGS="-Wl,-lgarbage,-Limport/lib" \
+  && mkdir -p build/bin \
+  && ${CC:?} -c -o /tmp/iDVJTpdJbWdsA9Qp.o -xc doc/html/libgarbage-MallocMonitor.c.txt ${CFLAGS?} \
+  && ${LD:?} -o build/${TOOLCHAIN?}/bin/libgarbage-MallocMonitor"${BINEXT?}" /tmp/iDVJTpdJbWdsA9Qp.o ${LDFLAGS?} \
+
+#endif
+
+#define Garbage_Closure void*
+#include <Garbage_Bootstrap.h>
+#include <stdio.h>
+#include <container_of.h>
+
+
+typedef  struct App  App;
+
+
+struct App {
+    struct Garbage_Env **env;
+    struct Garbage_Mallocator **mallocator; /* our decorated instance, eager to track usage */
+    struct Garbage_Mallocator **mallocatorBackend; /* Where we delegate the work to */
+    struct Garbage_Mallocator *mallocatorPimpl; /* pimpl, so we can find our context again */
+    void *memBlockToUse[SIZEOF_struct_Garbage_Env/sizeof(void*)];
+};
+
+
+static void onRealloc(
+    struct Garbage_Mallocator**mallocator_, void*ptr, size_t oldSz, size_t newSz,
+    void(*onDone)(int,void*,void*), void*onDoneArg
+){
+    App*const app = container_of(mallocator_, App, mallocatorPimpl);
+    /* here we can do whatever tracing we need .. */
+    fprintf(stderr, "[TRACE]         realloc(%-14p, %6ld, %6ld)\n", ptr, oldSz, newSz);
+    /* .. before delegating the work to whatever impl we like */
+    (*app->mallocatorBackend)->realloc(
+        app->mallocatorBackend, ptr, oldSz, newSz, onDone, onDoneArg);
+}
+
+
+static void* onReallocBlocking(
+    struct Garbage_Mallocator**mallocator_, void*ptr, size_t oldSz, size_t newSz
+){
+    App*const app = container_of(mallocator_, App, mallocatorPimpl);
+    /* here we can do whatever tracing we need .. */
+    fprintf(stderr, "[TRACE] reallocBlocking(%-14p, %6ld, %6ld)\n", ptr, oldSz, newSz);
+    /* .. before delegating the work to whatever impl we like */
+    return (*app->mallocatorBackend)->reallocBlocking(app->mallocatorBackend, ptr, oldSz, newSz);
+}
+
+
+static void makeSomeExampleAllocations( void*app_ ){
+    App*const app = app_;
+    void *buf = NULL;
+    int oldSz = 0, newSz = 0;
+    /* get some memory */
+    newSz = 32;
+    buf = (*app->mallocator)->reallocBlocking(app->mallocator, buf, oldSz, newSz);
+    oldSz = newSz;
+    /* resize it a bit */
+    newSz = 42;
+    buf = (*app->mallocator)->reallocBlocking(app->mallocator, buf, oldSz, newSz);
+    oldSz = newSz;
+    /* finally, free it */
+    newSz = 0;
+    buf = (*app->mallocator)->reallocBlocking(app->mallocator, buf, oldSz, newSz);
+}
+
+
+static void initEnv( App*app ){
+    app->env = Garbage_newEnv(app->memBlockToUse, sizeof app->memBlockToUse);
+    app->mallocatorBackend = Garbage_newMallocator();
+    static struct Garbage_Mallocator monitorVt = {
+        .realloc = onRealloc,
+        .reallocBlocking = onReallocBlocking,
+    };
+    app->mallocatorPimpl = &monitorVt;
+    app->mallocator = &app->mallocatorPimpl;
+}
+
+
+int main(){
+    struct App *app = &(struct App){
+        0,
+    };
+    initEnv(app);
+    (*app->env)->enqueBlocking(app->env, makeSomeExampleAllocations, app);
+    (*app->env)->runUntilDone(app->env);
+    return 0;
+}
+
+

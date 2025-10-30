@@ -1,0 +1,22 @@
+
+* {
+    color: #eee;
+    background-color: #111;
+}
+
+a:link { color: #88e; }
+a:visited { color: #e8e; }
+
+body {
+    margin: 1rem 1rem 8rem 1rem;
+}
+
+code.lua {
+    display: block;
+    border: 1px solid white;
+    margin: 0 0 0 1rem;
+    padding: 0.4rem 0.8rem;
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+

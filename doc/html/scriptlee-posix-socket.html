@@ -1,0 +1,92 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - POSIX - socket</h2>
+
+    <p>A simple TCP server, reading (but ignoring) incoming data up to EOF and
+    sending a hardcoded HTTP response.</p>
+
+    <code class="lua">
+      <br/>
+      local AF_INET = require("scriptlee").posix.AF_INET<br/>
+      local IPPROTO_TCP = require("scriptlee").posix.IPPROTO_TCP<br/>
+      local SOCK_STREAM = require("scriptlee").posix.SOCK_STREAM<br/>
+      local socket = require("scriptlee").posix.socket<br/>
+      <br/>
+      local listenAddr = "127.0.0.1"<br/>
+      local port = 8080<br/>
+      local backlog = 4<br/>
+      <br/>
+      function main()<br/>
+          local sck = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)<br/>
+          sck:bind(port, listenAddr)<br/>
+          sck:listen(backlog)<br/>
+          while true do<br/>
+              print("Listen on ", listenAddr, port)<br/>
+              local client = sck:accept()<br/>
+              print("A client has connected")<br/>
+              while true do<br/>
+                  local buf = client:read()<br/>
+                  if not buf then<br/>
+                      print("Incoming stream got closed")<br/>
+                      break<br/>
+                  end<br/>
+                  -- For this example we just ignore what the client sent<br/>
+                  -- and just respond with a hardcoded HTTP response each time to<br/>
+                  -- keep our example simple.<br/>
+                  client:write("HTTP/1.0 200 OK\r\n"<br/>
+                      .."Content-Type: text/html\r\n"<br/>
+                      .."\r\n"<br/>
+                      .."&lt;h1&gt;Hi there :)&lt;/h1&gt; &lt;p&gt;how are you?&lt;/p&gt;\n")<br/>
+                  client:closeSnk()<br/>
+              end<br/>
+              client:release()<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+    <p>A TCP client, sending hardcoded HTTP request and then printing to stdout
+    what comes back from the server.</p>
+
+    <code class="lua">
+      <br/>
+      local AF_INET = require("scriptlee").posix.AF_INET<br/>
+      local IPPROTO_TCP = require("scriptlee").posix.IPPROTO_TCP<br/>
+      local SOCK_STREAM = require("scriptlee").posix.SOCK_STREAM<br/>
+      local socket = require("scriptlee").posix.socket<br/>
+      <br/>
+      local host = "127.0.0.1"<br/>
+      local port = 8080<br/>
+      <br/>
+      function main()<br/>
+          local client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)<br/>
+          print("Connecting to", host, port)<br/>
+          local timeoutMs = 5000<br/>
+          client:connect(host, port, timeoutMs)<br/>
+          client:write("GET /index.html HTTP/1.0\r\n"<br/>
+              .."Host: ".. host ..":".. port .."\r\n"<br/>
+              .."\r\n")<br/>
+          print("Server responded with:")print()<br/>
+          while true do<br/>
+            local buf = client:read()<br/>
+            if not buf then<br/>
+                break -- EOF reached.<br/>
+            end<br/>
+            io.write(buf)<br/>
+          end<br/>
+          client:release()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+  </body>
+</html>
+

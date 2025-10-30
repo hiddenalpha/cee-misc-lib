@@ -1,0 +1,56 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>CeeMiscLib - Scriptlee - Compress</h2>
+
+    <p>See also related <a href="scriptlee-zip.html">zip</a> module.</p>
+
+    <p>Deflate stdin to stdout.</p>
+
+    <code class="lua">
+      local newDeflater = require("scriptlee").compress.newDeflater<br/>
+      local inn, out = io.stdin, io.stdout<br/>
+      <br/>
+      local deflater = newDeflater{<br/>
+          --cls = { isFirst = true },<br/>
+          --level = 4,<br/>
+          onChunk = function(buf, cls)<br/>
+              out:write(buf)<br/>
+          end,<br/>
+          --onEnd = function(cls) end,<br/>
+      }<br/>
+      <br/>
+      while true do<br/>
+          local buf = inn:read(65536)<br/>
+          if not buf then break end<br/>
+          deflater:write(buf)<br/>
+      end<br/>
+      deflater:closeSnk()<br/>
+    </code>
+
+    <p>Inflate stdin to stdout</p>
+
+    <code class="lua">
+      local newInflater = require("scriptlee").compress.newInflater<br/>
+      local inn, out = io.stdin, io.stdout<br/>
+      <br/>
+      local inflater = newInflater{<br/>
+          --cls = yourClosure,<br/>
+          onChunk = function(buf, cls) out:write(buf) end,<br/>
+          --onEnd = function(cls) end,<br/>
+      }<br/>
+      <br/>
+      while true do<br/>
+          local buf = inn:read(65536)<br/>
+          if not buf then break end<br/>
+          inflater:write(buf)<br/>
+      end<br/>
+      inflater:closeSnk()<br/>
+    </code>
+
+  </body>
+</html>
+
