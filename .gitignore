@@ -1,0 +1,12 @@
+
+/Makefile
+/Dockerfile
+/build
+/dist
+/external
+
+# Eclipse
+.cproject
+.project
+.settings
+
