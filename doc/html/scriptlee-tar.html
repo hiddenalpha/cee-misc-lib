@@ -1,0 +1,118 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Tar</h2>
+
+    <p>Read tar from stdin and print some description to stdout</p>
+
+    <code class="lua">
+      <br/>
+      local doSomewhatWithTarHeader, doWhateverYouNeedToDoWithTarBody, doWhateverYouNeedToDoWhenEntryDone, main<br/>
+      <br/>
+      local newTarParser = require("scriptlee").newTarParser<br/>
+      local src, snk = io.stdin, io.stdout<br/>
+      <br/>
+      -- Example what we could do with a tar header<br/>
+      function doSomewhatWithTarHeader( hdr, myClosure )<br/>
+          snk:write("TarEntryHeader:\n")<br/>
+          snk:write("    |- name: '", hdr.filename,"'\n")<br/>
+          snk:write("    |- mode:  ", string.format("0%o",hdr.mode), "\n")<br/>
+          snk:write("    |- uid:   ", hdr.uid )<br/>
+          if hdr.username then snk:write(" (", hdr.username, ")") end<br/>
+          snk:write("\n    |- gid:   ", hdr.gid)<br/>
+          if hdr.groupname then snk:write(" (", hdr.groupname, ")") end<br/>
+          snk:write("\n    |- size:  ", hdr.size, " bytes\n")<br/>
+          snk:write("    |- mtime: ", hdr.mtime, " (", os.date('%Y-%m-%d %H:%M:%S %z', hdr.mtime), ")\n")<br/>
+          snk:write("    |- checksum read: ", hdr.checksum, "\n")<br/>
+          snk:write("    |   |-- unsigned: ", hdr.checksumEval(), "\n")<br/>
+          snk:write("    |   '---- signed: ", hdr.checksumEvalSign(), "\n")<br/>
+          snk:write("    |- link:  ", hdr.link, " (" )<br/>
+          if hdr.link==0x30 then snk:write("File")<br/>
+          elseif hdr.link==0x31 then snk:write("HardLink")<br/>
+          elseif hdr.link==0x32 then snk:write("SymLink")<br/>
+          elseif hdr.link==0x35 then snk:write("Directory")<br/>
+          elseif hdr.link==0x4C then snk:write("GnuLongName")<br/>
+          else snk:write("UNKNOWN") end<br/>
+          snk:write( ")\n")<br/>
+          snk:write("    '- linkname: '", hdr.linkname, "'\n")<br/>
+      end<br/>
+      <br/>
+      function doWhateverYouNeedToDoWithTarBody( buf, myClosure )<br/>
+          snk:write("doWhateverYouNeedToDoWithTarBody( buf_len=".. buf:len() .." )\n")<br/>
+      end<br/>
+      <br/>
+      function doWhateverYouNeedToDoWhenEntryDone( myClosure )<br/>
+          snk:write("doWhateverYouNeedToDoWhenEntryDone()\n")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { whateverINeed = 42 }<br/>
+          local parser = newTarParser{<br/>
+              cls = myClosure,<br/>
+              onTarHeader = doSomewhatWithTarHeader,<br/>
+              onBodyChunk = doWhateverYouNeedToDoWithTarBody,<br/>
+              onEnd = doWhateverYouNeedToDoWhenEntryDone,<br/>
+          }<br/>
+          while true do<br/>
+              local buf = src:read(65536)<br/>
+              if not buf then break end<br/>
+              parser:write(buf)<br/>
+          end<br/>
+          parser:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    </code>
+
+    <p>Write a tar to stdout</p>
+
+    <code class="lua">
+      <br/>
+      local onTarChunk, onTarEnd, main<br/>
+      <br/>
+      local newTarWriter = require("scriptlee").newTarWriter<br/>
+      local snk = io.stdout<br/>
+      <br/>
+      function onTarChunk( buf, myClosure )<br/>
+          snk:write(buf)<br/>
+      end<br/>
+      <br/>
+      function onTarEnd()<br/>
+          io.stderr:write("Tar written\n")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { whateverINeed = 42 }<br/>
+          local tar = newTarWriter{<br/>
+              cls = myClosure,<br/>
+              onChunk = onTarChunk,<br/>
+              onEnd = onTarEnd,<br/>
+          }<br/>
+          -- Add a directory<br/>
+          tar:nextEntry()<br/>
+          tar:setTypeDir()<br/>
+          tar:setName("my/directory/")<br/>
+          tar:setMode(0x1ED)<br/>
+          tar:setMtime(os.time())<br/>
+          -- Add a file<br/>
+          tar:nextEntry()<br/>
+          tar:setTypeFile() -- Optional, as file is default type<br/>
+          tar:setName("my/file.txt")<br/>
+          local body = "Contents of the file\n"<br/>
+          tar:setSize(body:len())<br/>
+          tar:setMode(0x1A4)<br/>
+          tar:setMtime(os.time())<br/>
+          tar:write(body)<br/>
+          --<br/>
+          tar:closeSnk()<br/>
+      end<br/>
+      <br/>
+    </code>
+
+  </body>
+</html>
+
