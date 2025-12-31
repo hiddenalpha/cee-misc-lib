@@ -1,0 +1,128 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - HTTP</h2>
+
+    <p>HTTP request via http client</p>
+
+    <code class="lua">
+      <br/>
+      local onResponseHeader, onResponseBodyChunk, onResponseEnd, main<br/>
+      <br/>
+      local newHttpClient = require("scriptlee").newHttpClient<br/>
+      local startOrExecute = require("scriptlee").reactor.startOrExecute<br/>
+      <br/>
+      function onResponseHeader( rspHdr, myClosure )<br/>
+          io.write("Response from server was:\n")<br/>
+          io.write(".-----------------------------------------\n")<br/>
+          io.write("|  ".. rspHdr.proto .." ".. rspHdr.status .." ".. rspHdr.phrase .."\n")<br/>
+          for i,h in ipairs(rspHdr.headers) do<br/>
+              io.write("|  ".. h[1] ..": ".. h[2] .."\n")<br/>
+          end<br/>
+          io.write("|  \n")<br/>
+      end<br/>
+      function onResponseBodyChunk( buf, myClosure )<br/>
+          io.write("|  ".. buf:gsub("\n", "\n|  "))<br/>
+      end<br/>
+      function onResponseEnd( myClosure )<br/>
+          io.write("\n'-----------------------------------------\n")<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { whateverINeed = 42 }<br/>
+          local httpClient = newHttpClient({})<br/>
+          local request = httpClient:request({<br/>
+              cls = myClosure,<br/>
+              host = "127.0.0.1", port = 8080,<br/>
+              method = "GET", url = "/index.html",<br/>
+              onRspHdr = onResponseHeader,<br/>
+              onRspChunk = onResponseBodyChunk,<br/>
+              onRspEnd = onResponseEnd,<br/>
+          })<br/>
+          --request:write("Request body would go here. But GET has none.\n")<br/>
+          request:closeSnk()<br/>
+      end<br/>
+      <br/>
+      startOrExecute(main)<br/>
+      <br/>
+    </code>
+
+
+    <p>HTTP server is not impl yet. For now we have to open sockets and attach
+    appropriate parsers to the streams.</p>
+
+    <code class="lua">
+      <br/>
+      local onHttpRequestLine, onHttpRequestHeader, primitiveHttpServer<br/>
+      <br/>
+      local AF_INET = require("scriptlee").posix.AF_INET<br/>
+      local IPPROTO_TCP = require("scriptlee").posix.IPPROTO_TCP<br/>
+      local SOCK_STREAM = require("scriptlee").posix.SOCK_STREAM<br/>
+      local socket = require("scriptlee").posix.socket<br/>
+      local newHttpReqParser = require("scriptlee").newHttpReqParser<br/>
+      local startOrExecute = require("scriptlee").reactor.startOrExecute<br/>
+      <br/>
+      local host = "127.0.0.1"<br/>
+      local port = 8080<br/>
+      <br/>
+      function onHttpRequestLine( method, uri, version, myClosure )<br/>
+          myClosure.reqMethod = method<br/>
+          myClosure.reqUri = uri<br/>
+      end<br/>
+      function onHttpRequestHeader( key, val, myClosure )<br/>
+      end<br/>
+      function onHttpMessageEnd( myClosure )<br/>
+          local rspStatus, rspPhrase, body<br/>
+          if myClosure.reqMethod == "GET" and myClosure.reqUri == "/foo" then<br/>
+              rspStatus = 200; rspPhrase = "OK"; body = "Hello World\n"<br/>
+          else<br/>
+              rspStatus = 404; rspPhrase = "Nid Gfunge"; body = ""<br/>
+          end<br/>
+          myClosure.clientConn:write( "HTTP/1.1 ".. rspStatus .." ".. rspPhrase .."\r\n"<br/>
+              .."Content-Length: ".. body:len() .."\r\n"<br/>
+              .."Connection: close\r\n"<br/>
+              .."\r\n"<br/>
+              .. body )<br/>
+          myClosure.clientConn:shutdown() -- &lt- Send EOF<br/>
+      end<br/>
+      <br/>
+      function primitiveHttpServer()<br/>
+          local serverSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)<br/>
+          --serverSock:setReuseAddr() -- address re-use is FOR DEBUGGING ONLY!!!<br/>
+          serverSock:bind(port, host)<br/>
+          serverSock:listen(4)<br/>
+          io.stderr:write("Listening on '".. host ..":".. port .."'\n")<br/>
+          while true do<br/>
+              local clientConn = serverSock:accept()<br/>
+              io.stderr:write("New client: ".. clientConn:remoteAddrStr() ..":".. clientConn:remotePort() .."\n")<br/>
+              local myClosure = {<br/>
+                  clientConn = clientConn,<br/>
+                  reqMethod = false,<br/>
+                  reqUri = false,<br/>
+              }<br/>
+              local parser = newHttpReqParser({<br/>
+                  cls = myClosure,<br/>
+                  onReqLine = onHttpRequestLine,<br/>
+                  onHeader = onHttpRequestHeader,<br/>
+                  onMsgEnd = onHttpMessageEnd,<br/>
+              })<br/>
+              -- Forward incoming HTTP request to parser<br/>
+              while true do<br/>
+                  local buf = clientConn:read(65536)<br/>
+                  if not buf then break end<br/>
+                  parser:write(buf)<br/>
+              end<br/>
+              parser:closeSnk()<br/>
+              clientConn:release() -- &lt- Cleanup resources used by that client<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      startOrExecute(primitiveHttpServer)<br/>
+      <br/>
+    </code>
+
+  </body>
+</html>

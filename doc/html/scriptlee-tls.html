@@ -1,0 +1,79 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - TLS</h2>
+
+    <p>WARN TLS module is not in a secure state yet! MUST only be used
+    for non relevant stuff!</p>
+
+    <code class="lua">
+      <br/>
+      local tlsReportsVerificationStatus, tlsAsksToSendStuff, tlsAsksToRecvStuff,<br/>
+            tlsAsksToShutdownTransport, main<br/>
+      <br/>
+      local AF_INET = require("scriptlee").posix.AF_INET<br/>
+      local IPPROTO_TCP = require("scriptlee").posix.IPPROTO_TCP<br/>
+      local SOCK_STREAM = require("scriptlee").posix.SOCK_STREAM<br/>
+      local newTlsClient = require("scriptlee").newTlsClient<br/>
+      local socket = require("scriptlee").posix.socket<br/>
+      local startOrExecute = require("scriptlee").reactor.startOrExecute<br/>
+      <br/>
+      local log = io.stderr<br/>
+      local peerHostname = "example.com"<br/>
+      local peerPort = 443<br/>
+      <br/>
+      function tlsReportsVerificationStatus( tlsIssues, sock )<br/>
+          if tlsIssues.CERT_NOT_TRUSTED then<br/>
+              warn("TLS ignore CERT_NOT_TRUSTED\n");<br/>
+              tlsIssues.CERT_NOT_TRUSTED = false<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      function tlsAsksToSendStuff( buf, myClosure )<br/>
+          return myClosure.sock:write(buf)<br/>
+      end<br/>
+      <br/>
+      function tlsAsksToRecvStuff( myClosure )<br/>
+          return myClosure.sock:read()<br/>
+      end<br/>
+      <br/>
+      function tlsAsksToShutdownTransport( myClosure )<br/>
+          return myClosure.sock:closeSnk()<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)<br/>
+          sock:connect(peerHostname, peerPort)<br/>
+          local myClosure = { sock = sock }<br/>
+          local client = newTlsClient{<br/>
+              cls = myClosure,<br/>
+              peerHostname = peerHostname,<br/>
+              onVerify = tlsReportsVerificationStatus,<br/>
+              send = tlsAsksToSendStuff,<br/>
+              recv = tlsAsksToRecvStuff,<br/>
+              closeSnk = tlsAsksToShutdownTransport,<br/>
+          }<br/>
+          -- Send a HTTP GET request<br/>
+          client:write("GET /mir/senne/heis/luschtig HTTP/1.1\r\n"<br/>
+                  .."Host: ".. peerHostname .."\r\n"<br/>
+                  .."\r\n")<br/>
+          client:closeSnk()<br/>
+          -- read the http(s) response<br/>
+          while true do<br/>
+              local buf = client:read(1&lt;&lt;14)<br/>
+              if not buf then break end<br/>
+              io.stdout:write("\nclient:read():\n".. tostring(buf) .."\n\n")<br/>
+          end<br/>
+          log:write("Done :)\n")<br/>
+      end<br/>
+      <br/>
+      startOrExecute(main)<br/>
+      <br/>
+    </code>
+
+  </body>
+</html>
+
