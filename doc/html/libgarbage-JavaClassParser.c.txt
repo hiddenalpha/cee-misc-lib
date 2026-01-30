@@ -1,0 +1,494 @@
+#if 0
+
+  && CC=gcc \
+  && LD=gcc \
+  && BINEXT= \
+  && CFLAGS="-Wall -Werror -pedantic -Os -s -Iimport/include" \
+  && LDFLAGS="-Wl,-lgarbage,-Limport/lib" \
+  && mkdir -p build/bin \
+  && ${CC:?} -c -o /tmp/mplqAku3sdrei5vb -xc doc/html/libgarbage-JavaClassParser.c.txt ${CFLAGS?} \
+  && ${LD:?} -o build/bin/ExampleJavaClassParser"${BINEXT?}" /tmp/mplqAku3sdrei5vb ${LDFLAGS?} \
+
+#endif
+
+#define Garbage_Closure void*
+#include <Garbage_Bootstrap.h>  /* only needed because we call ctors from here. */
+/*#include <Garbage.h>*/ /* if we don't need ctor, we would include this one instead. */
+
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+
+typedef  struct App  App;
+
+
+struct App {
+    struct Garbage_Env **env;
+    struct Garbage_Mallocator **mallocator;
+    struct Garbage_JavaBytecodeParser **java;
+    struct Garbage_JavaBytecodeParser_Mentor *javaMentor;
+    int exitCode;
+    int srcBuf_beg, srcBuf_end, srcBuf_cap;
+    char srcBuf[8192];
+    void *memBlockToUse[SIZEOF_struct_Garbage_Env/sizeof(void*)];
+};
+
+
+static void onJavaParserNeedsMoreData( void* );
+
+
+static void onJavaCloseSnkDone( int ret, void*app_ ){
+    (void)app_; //App*const app = app_;
+    if( ret != 0 ){ fprintf(stderr, "Whops %s(): %s\n", __func__, strerror(-ret)); }
+}
+
+
+static void onSrcBufferNeedsMoreData( void*app_, void(*onDone)(void*), void*onDoneArg ){
+    App*const app = app_;
+    FILE*const srcFile = stdin;
+    int const tailSpace = app->srcBuf_cap - app->srcBuf_end;
+    assert(tailSpace > 0);
+    /* TODO Do NOT block EvLoop */
+    size_t const readLen = fread(app->srcBuf + app->srcBuf_end, 1, tailSpace, srcFile);
+    if( readLen == 0 && ferror(srcFile) ){
+        fprintf(stderr, "%s(): %s\n", __func__, strerror(errno));
+        assert(0); return;
+    }
+    if( readLen == 0 && feof(srcFile) ){
+        (*app->java)->closeSnk(app->java, onJavaCloseSnkDone, app_);
+        return;
+    }
+    app->srcBuf_end += readLen;
+    (*app->env)->enqueBlocking(app->env, onDone, onDoneArg);
+}
+
+
+static void onJavaParserWriteDone( int ret, void*app_ ){
+    App*const app = app_;
+    int const len = app->srcBuf_end - app->srcBuf_beg;
+    assert(ret == len);
+    app->srcBuf_beg = app->srcBuf_end = 0;
+    (*app->env)->enqueBlocking(app->env, onJavaParserNeedsMoreData, app_);
+}
+
+
+static void onJavaParserNeedsMoreData( void*app_ ){
+    App*const app = app_;
+    if( app->srcBuf_beg >= app->srcBuf_end ){
+        onSrcBufferNeedsMoreData(app, onJavaParserNeedsMoreData, app_);
+        return;
+    }
+    int const off = app->srcBuf_beg;
+    int const len = app->srcBuf_end - app->srcBuf_beg;
+    (*app->java)->write(app->java, app->srcBuf + off, len, onJavaParserWriteDone, app_);
+}
+
+
+static void onJavaMagic( uint_least32_t magic, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  0x%X\n", __func__, magic);
+}
+
+
+static void onJavaClassfileVersion(
+    int major, int minor, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    /* See also "https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.1-200-B.2" */
+    printf("%24s  %d.%d\n", __func__, major, minor);
+}
+
+
+static void onJavaConstPoolBegin(
+    int poolSize, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  poolSize=%d\n", __func__, poolSize);
+}
+
+
+static void onJavaConstPoolUtf8(
+    int poolNr, char const*buf, int buf_len, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  \"%.*s\"\n", __func__, poolNr, buf_len, buf);
+}
+
+
+static void onJavaConstPoolInteger(
+    int poolNr, int_least32_t intValue, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  %d\n", __func__, poolNr, intValue);
+}
+
+
+static void onJavaConstPoolFloat(
+    int poolNr, float value, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  %g\n", __func__, poolNr, value);
+}
+
+
+static void onJavaConstPoolLong(
+    int poolNr, int_least64_t value, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  %ld\n", __func__, poolNr, value);
+}
+
+
+static void onJavaConstPoolDouble(
+    int poolNr, double value, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  %f\n", __func__, poolNr, value);
+}
+
+
+static void onJavaConstPoolStrRef(
+    int poolNr, int dstIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  dstIdx=%d\n", __func__, poolNr, dstIdx);
+}
+
+
+static void onJavaConstPoolClassRef(
+    int poolNr, int nameIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%d\n", __func__, poolNr, nameIdx);
+}
+
+
+static void onJavaConstPoolMethodRef(
+    int poolNr, int classIdx, int nameAndTypeIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  classIdx=%d, nameAndTypeIdx=%d\n", __func__, poolNr, classIdx, nameAndTypeIdx);
+}
+
+
+static void onJavaCpIfaceMthdRf(
+    int poolNr, int nameIdx, int nameAndTypeIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%d, nameAndTypeIdx=%d\n", __func__, poolNr, nameIdx, nameAndTypeIdx);
+}
+
+
+static void onJavaConstPoolFieldRef(
+    int poolNr, int nameIdx, int nameAndTypeIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%d, nameAndTypeIdx=%d\n", __func__, poolNr, nameIdx, nameAndTypeIdx);
+}
+
+
+static void onJavaCpNmAndTyp(
+    int poolNr, int nameIdx, int typeIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%d, typeIdx=%d\n", __func__, poolNr, nameIdx, typeIdx);
+}
+
+
+static void onJavaCpMthdHdl(
+    int poolNr, int refKind, int refIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  refKind=%d, refIdx=%d\n", __func__, poolNr, refKind, refIdx);
+}
+
+
+static void onJavaCpMthdTyp(
+    int poolNr, int descrIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  descrIdx=%d\n", __func__, poolNr, descrIdx);
+}
+
+
+static void onJavaCpInvDynamic(
+    int poolNr, int bootstrapMethodAttrIdx, int nameAndTypeIdx,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  bootstrapMethodAttrIdx=%d, nameAndTypeIdx=%d\n",
+        __func__, poolNr, bootstrapMethodAttrIdx, nameAndTypeIdx);
+}
+
+
+static void onJavaConstPoolModule(
+    int poolNr, uint_least16_t nameIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%u\n", __func__, poolNr, nameIdx);
+}
+
+
+static void onJavaConstPoolPackage(
+    int poolNr, uint_least16_t nameIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %4d  nameIdx=%u\n", __func__, poolNr, nameIdx);
+}
+
+
+static void onJavaConstPoolEnd( struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s\n", __func__);
+}
+
+
+static void onJavaAccessFlags(
+    uint16_t accessFlags, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s %s%s%s%s%s%s%s%s%s%s\n", __func__,
+        (accessFlags & Garbage_JAVA_THIS_PUBLIC    ) ? " public"     : "",
+        (accessFlags & Garbage_JAVA_THIS_FINAL     ) ? " final"      : "",
+        (accessFlags & Garbage_JAVA_THIS_SUPER     ) ? " super"      : "",
+        (accessFlags & Garbage_JAVA_THIS_INTERFACE ) ? " interface"  : "",
+        (accessFlags & Garbage_JAVA_THIS_ABSTRACT  ) ? " abstract"   : "",
+        (accessFlags & Garbage_JAVA_THIS_SYNTHETIC ) ? " synthetic"  : "",
+        (accessFlags & Garbage_JAVA_THIS_ANNOTATION) ? " annotation" : "",
+        (accessFlags & Garbage_JAVA_THIS_ENUM      ) ? " enum"       : "",
+        (accessFlags & Garbage_JAVA_THIS_MODULE    ) ? " module"     : "",
+        "");
+}
+
+
+static void onJavaThisClass( int nameIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  nameIdx=%d\n", __func__, nameIdx);
+}
+
+
+static void onJavaSuperClass( int nameIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  nameIdx=%d\n", __func__, nameIdx);
+}
+
+
+static void onJavaIfacesBegin( int numIfaces, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  numIfaces=%d\n", __func__, numIfaces);
+}
+
+
+static void onJavaIface(
+    int iIface, int classIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  nr=%d, classIdx=%d\n", __func__, iIface, classIdx);
+}
+
+
+static void onJavaIfacesEnd( struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s\n", __func__);
+}
+
+
+static void onJavaFieldsBegin(
+    uint_least16_t numFields, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  numFields=%u\n", __func__, numFields);
+}
+
+
+static void onJavaField(
+    uint_least16_t poolIdx, uint_least16_t accessFlags, uint_least16_t nameIdx,
+    uint_least16_t descrIdx, uint_least16_t numAttrs,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  pool=%u, nm=%u, descr=%u, nAttr=%u, Access:%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+        __func__, poolIdx, nameIdx, descrIdx, numAttrs,
+        (accessFlags & Garbage_JAVA_MTHD_PUBLIC      ) ? " public"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_PRIVATE     ) ? " private"      : "",
+        (accessFlags & Garbage_JAVA_MTHD_PROTECTED   ) ? " protected"    : "",
+        (accessFlags & Garbage_JAVA_MTHD_STATIC      ) ? " static"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_FINAL       ) ? " final"        : "",
+        (accessFlags & Garbage_JAVA_MTHD_SYNCHRONIZED) ? " synchronized" : "",
+        (accessFlags & Garbage_JAVA_MTHD_BRIDGE      ) ? " bridge"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_VARARGS     ) ? " varargs"      : "",
+        (accessFlags & Garbage_JAVA_MTHD_NATIVE      ) ? " native"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_ABSTRACT    ) ? " abstract"     : "",
+        (accessFlags & Garbage_JAVA_MTHD_STRICT      ) ? " strict"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_SYNTHETIC   ) ? " synthetic"    : "",
+        "");
+}
+
+
+static void onJavaMethodsBegin( int numMethods, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  numMethods=%d\n", __func__, numMethods);
+}
+
+
+static void onJavaMethod(
+    uint16_t accessFlags, int nameIdx, int descrIdx, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  nameIdx=%d, descrIdx=%d, Access:%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+        __func__, nameIdx, descrIdx,
+        (accessFlags & Garbage_JAVA_MTHD_PUBLIC      ) ? " public"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_PRIVATE     ) ? " private"      : "",
+        (accessFlags & Garbage_JAVA_MTHD_PROTECTED   ) ? " protected"    : "",
+        (accessFlags & Garbage_JAVA_MTHD_STATIC      ) ? " static"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_FINAL       ) ? " final"        : "",
+        (accessFlags & Garbage_JAVA_MTHD_SYNCHRONIZED) ? " synchronized" : "",
+        (accessFlags & Garbage_JAVA_MTHD_BRIDGE      ) ? " bridge"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_VARARGS     ) ? " varargs"      : "",
+        (accessFlags & Garbage_JAVA_MTHD_NATIVE      ) ? " native"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_ABSTRACT    ) ? " abstract"     : "",
+        (accessFlags & Garbage_JAVA_MTHD_STRICT      ) ? " strict"       : "",
+        (accessFlags & Garbage_JAVA_MTHD_SYNTHETIC   ) ? " synthetic"    : "",
+        "");
+}
+
+
+static void onJavaClassAttrsBegin( int numAttrs, struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  numAttrs=%d\n", __func__, numAttrs);
+}
+
+
+static void onJavaAnnotRtVisible(
+    uint_least16_t typeIdx, uint_least16_t numKeyValPairs,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  typeIdx=%u, numKeyValPairs=%u\n", __func__, typeIdx, numKeyValPairs);
+}
+
+
+static void onJavaAnnotRtInVisible(
+    uint_least16_t typeIdx, uint_least16_t numKeyValPairs,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  typeIdx=%u, numKeyValPairs=%u\n", __func__, typeIdx, numKeyValPairs);
+}
+
+
+static void onJavaAnnotKeyValPair(
+    uint_least8_t type, uint_least16_t typeNameIdx, uint_least16_t constNameIdx,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  type=%u, typeNameIdx=%u, constNameIdx=%u\n",
+        __func__, type, typeNameIdx, constNameIdx);
+}
+
+
+static void onJavaAnnotKey(
+    uint_least8_t type, uint_least16_t typeNameIdx,
+    struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  type=%u, typeNameIdx=%u\n", __func__, type, typeNameIdx);
+}
+
+
+static void onJavaGenericAttribute(
+    int nameIdx, uint_least32_t body_len, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s  nameIdx=%d, body_len=%u\n", __func__, nameIdx, body_len);
+}
+
+
+static void onJavaGenAttrCont(
+    const uint8_t*buf, int buf_len, struct Garbage_JavaBytecodeParser_Mentor**pimpl
+){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    int isPrintableEnough = buf_len < 128;
+    if( isPrintableEnough ) for( int i = 0 ; i < buf_len ; ++i ){
+        if( buf[i] >=  '0' && buf[i] <=  '9' ) continue;
+        if( buf[i] >=  'A' && buf[i] <=  'Z' ) continue;
+        if( buf[i] >=  'a' && buf[i] <=  'z' ) continue;
+        if( buf[i] >= 0x20 && buf[i] <= 0x2F ) continue;
+        if( buf[i] >= 0x7B && buf[i] <= 0x7E ) continue;
+        isPrintableEnough = 0; break;
+    }
+    if( isPrintableEnough ){
+        printf("%24s %4d bytes: \"%.*s\"\n", __func__, buf_len, buf_len, buf);
+    }else{
+        printf("%24s %4d bytes data\n", __func__, buf_len);
+    }
+}
+
+
+static void onJavaEnd( struct Garbage_JavaBytecodeParser_Mentor**pimpl ){
+    (void)pimpl; //App*const app = container_of(pimpl, App, javaMentor);
+    printf("%24s\n", __func__);
+}
+
+
+static void initEnv( App*app ){
+    app->env = Garbage_newEnv(app->memBlockToUse, sizeof app->memBlockToUse);
+    app->mallocator = Garbage_newMallocator();
+    static struct Garbage_JavaBytecodeParser_Mentor javaMentor = {
+        .onMagic = onJavaMagic,
+        .onClassfileVersion = onJavaClassfileVersion,
+        .onConstPoolBegin = onJavaConstPoolBegin,
+        .onConstPoolUtf8 = onJavaConstPoolUtf8,
+        .onConstPoolInteger = onJavaConstPoolInteger,
+        .onConstPoolFloat = onJavaConstPoolFloat,
+        .onConstPoolLong = onJavaConstPoolLong,
+        .onConstPoolDouble = onJavaConstPoolDouble,
+        .onConstPoolStrRef = onJavaConstPoolStrRef,
+        .onConstPoolClassRef = onJavaConstPoolClassRef,
+        .onConstPoolMethodRef = onJavaConstPoolMethodRef,
+        .onConstPoolIfaceMethodRef = onJavaCpIfaceMthdRf,
+        .onConstPoolFieldRef = onJavaConstPoolFieldRef,
+        .onConstPoolNameAndType = onJavaCpNmAndTyp,
+        .onConstPoolMethodHandle = onJavaCpMthdHdl,
+        .onConstPoolMethodType = onJavaCpMthdTyp,
+        .onConstPoolInvokeDynamic = onJavaCpInvDynamic,
+        .onConstPoolModule = onJavaConstPoolModule,
+        .onConstPoolPackage = onJavaConstPoolPackage,
+        .onConstPoolEnd = onJavaConstPoolEnd,
+        .onAccessFlags = onJavaAccessFlags,
+        .onThisClass = onJavaThisClass,
+        .onSuperClass = onJavaSuperClass,
+        .onIfacesBegin = onJavaIfacesBegin,
+        .onIface = onJavaIface,
+        .onIfacesEnd = onJavaIfacesEnd,
+        .onFieldsBegin = onJavaFieldsBegin,
+        .onField = onJavaField,
+        .onMethodsBegin = onJavaMethodsBegin,
+        .onMethod = onJavaMethod,
+        .onClassAttrsBegin = onJavaClassAttrsBegin,
+        .onAnnotRtVisible = onJavaAnnotRtVisible,
+        .onAnnotRtInVisible = onJavaAnnotRtInVisible,
+        .onAnnotKeyValPair = onJavaAnnotKeyValPair,
+        .onAnnotKey = onJavaAnnotKey,
+        .onGenericAttribute = onJavaGenericAttribute,
+        .onGenericAttributeContent = onJavaGenAttrCont,
+        .onEnd = onJavaEnd,
+    };
+    app->javaMentor = &javaMentor;
+    app->java = Garbage_newJavaBytecodeParser(&app->javaMentor, app->mallocator);
+}
+
+
+int main(){
+    struct App *app = &(struct App){
+        .srcBuf_cap = sizeof app->srcBuf,
+    };
+    initEnv(app);
+    (*app->env)->enqueBlocking(app->env, onJavaParserNeedsMoreData, app);
+    (*app->env)->runUntilDone(app->env);
+    return app->exitCode;
+}
+
+
