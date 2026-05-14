@@ -1,0 +1,20 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Win32 - GetLastInputInfo</h2>
+
+    <code class="lua">
+    <br/>
+    local win32 = require("scriptlee").win32<br/>
+    <br/>
+    -- What a tick means is documented at<br/>
+    -- https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount<br/>
+    print( "Tick millis of last input was", win32.GetLastInputInfo() )<br/>
+    </code>
+
+  </body>
+</html>
+

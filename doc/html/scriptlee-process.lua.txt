@@ -1,0 +1,47 @@
+#!/usr/bin/scriptlee
+--[====================================================================[
+
+  FAQ:
+
+  Q: What the heck is "argv"?
+  A: https://hiddenalpha.ch/slnk/id/1-ox0os4aqgDdNm3kH
+
+--]====================================================================]
+
+
+local newProcess = require("scriptlee").newProcess
+local log, out = io.stderr, io.stdout
+
+
+function onStdout( buf, this )
+	if buf:len() > 0 then
+		out:write("STDOUT :  ".. (buf:gsub("\n", "\n       :  ")) .."\n")
+	else
+		out:write("STDOUT EOF\n")
+	end
+end
+
+
+function main()
+	local this = {}
+	this.cmdSayHi = newProcess{
+		cls = this,
+		argv = { "sh", "-c", 'echo ARGS: $0 $1 $2 $3 && echo ENVIRON: && env' },
+		envp = { "FOO=foo", "BAR=bar" },
+		workdir = "/tmp",
+		onStdout = onStdout,
+		--onStderr = onStderr,
+		usePathSearch = true,
+		--img = "sh",
+	}
+	this.cmdSayHi:start()
+	this.cmdSayHi:write("this goes to stdin\n")
+	this.cmdSayHi:closeSnk()
+	local timeoutSec = 1.5
+	local ok, exitcode, signal = this.cmdSayHi:join(timeoutSec)
+	print("JOIN", ok, exitCode, signal)
+end
+
+
+main()
+

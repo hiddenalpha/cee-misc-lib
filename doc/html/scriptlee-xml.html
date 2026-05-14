@@ -1,0 +1,77 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - XML</h2>
+
+    <p>(TODO: Needs update)</p>
+
+    <code class="lua">
+    <br/>
+    local newXmlParser = require("scriptlee").newXmlParser<br/>
+    <br/>
+    <br/>
+    -- Define callbacks for the events we are interested in.<br/>
+    local cb = {}<br/>
+    function cb.onElementBeg( tagName, cls )<br/>
+        io.write( "Elem-begin: ", tagName, "\n" )<br/>
+    end<br/>
+    function cb.onAttr( key, val, cls )<br/>
+        io.write( "Attribute: ", key, " -&gt; ", val, "\n" )<br/>
+    end<br/>
+    function cb.onChunk( buf, cls )<br/>
+        io.write( "Chunk   : ", buf, "\n" )<br/>
+    end<br/>
+    function cb.onEnd( cls )<br/>
+        io.write( "End-of-document.\n" )<br/>
+    end<br/>
+    <br/>
+    <br/>
+    -- Instantiate a parser and assing the events we need.<br/>
+    local parser = newXmlParser({<br/>
+        cls = {},<br/>
+        --onBeg = nil,<br/>
+        --onDoctypeDeclBeg = nil,<br/>
+        --onDoctypeDeclEnd = nil,<br/>
+        onElementBeg = cb.onElementBeg,<br/>
+        --onElementEnd = nil,<br/>
+        onAttr = cb.onAttr,<br/>
+        onChunk = cb.onChunk,<br/>
+        --onOther = nil,<br/>
+        --onSkippedEntity = nil,<br/>
+        --onComment = nil,<br/>
+        onEnd = cb.onEnd,<br/>
+    })<br/>
+    <br/>
+    <br/>
+    -- Example input.<br/>
+    local xmlBuf = [========[<br/>
+    &lt;?xml version="1.0" encoding="utf-8" ?&gt;<br/>
+    &lt;person firstname="Peter" lastname="Smith"&gt;<br/>
+      &lt;groups&gt;<br/>
+        &lt;group name="lpadmin"/&gt;<br/>
+        &lt;group name="postmaster"/&gt;<br/>
+        &lt;group name="hero"/&gt;<br/>
+      &lt;/groups&gt;<br/>
+      &lt;note&gt;<br/>
+        Some Text here about whatever.<br/>
+      &lt;/note&gt;<br/>
+    &lt;/person&gt;<br/>
+    ]========]<br/>
+    <br/>
+    <br/>
+    -- Push data to the parser. We can call 'write()' as many times as we want,<br/>
+    -- pushing the input chunk-by-chunk. But for simplicity in this example we just<br/>
+    -- pass the whole xml at once.<br/>
+    parser:write( xmlBuf )<br/>
+    <br/>
+    -- Then close the parser to signalize that the input is complete.<br/>
+    parser:closeSnk()<br/>
+    <br/>
+    </code>
+
+  </body>
+</html>
+
