@@ -1,0 +1,64 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Process</h2>
+
+    <p>Run some child process</p>
+
+    <code class="lua">
+      <br/>
+      local startOrExecute = require("scriptlee").reactor.startOrExecute<br/>
+      local newProcess = require("scriptlee").newProcess<br/>
+      <br/>
+      function onThereWasSomethingOnStdout( buf, myClosure )<br/>
+          if buf then<br/>
+              print("STDOUT:\n\t".. (buf:gsub("\n", "\n\t")))<br/>
+          else<br/>
+              -- EOF reached<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      function onThereWasSomethingOnStderr( buf, myClosure )<br/>
+          if buf then<br/>
+              print("STDERR:\n\t".. (buf:gsub("\n", "\n\t")))<br/>
+          else<br/>
+              -- EOF reached<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = {}<br/>
+          local askForUser = newProcess{<br/>
+              cls = myClosure,<br/>
+              --img = "sh",<br/>
+              --usePathSearch = true,<br/>
+              argv = { "sh", "-c", "echo stderr says hi &gt;&amp;2 &amp;&amp; echo pwd is $PWD" },<br/>
+              --envp = { "FOO=1", "BAR=2" },<br/>
+              workdir = "/tmp",<br/>
+              onStdout = onThereWasSomethingOnStdout,<br/>
+              onStderr = onThereWasSomethingOnStderr,<br/>
+          }<br/>
+          askForUser:start()<br/>
+          --askForUser:write("This goes to childs stdin\n") -- HINT: not impl yet<br/>
+          askForUser:closeSnk()<br/>
+          local timeoutMs = 42<br/>
+          local err, exitCode, signal = askForUser:join(timeoutMs)<br/>
+          print("err", err) -- falsy if command was ok, else an error description.<br/>
+          print("code", exitCode)<br/>
+          print("signal", signal)<br/>
+      end<br/>
+      <br/>
+      startOrExecute(main)<br/>
+      <br/>
+      -- FAQ:<br/>
+      -- <br/>
+      -- Q: What the heck is "argv"?<br/>
+      -- A: Please stop asking script-kiddie questions -&gt; https://hiddenalpha.ch/slnk/id/1-ox0os4aqgDdNm3kH<br/>
+      <br/>
+    </code>
+
+  <body>
+</html>
