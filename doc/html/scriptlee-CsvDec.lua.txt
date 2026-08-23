@@ -1,0 +1,42 @@
+#!/usr/bin/scriptlee
+
+
+local newCsvDec = require("scriptlee").newCsvDec
+local out = io.stdout
+
+
+function onChunk( this, row, col, buf, flg )
+	local isLastCellChunk = ((flg & 4) ~= 0)
+	out:write(("%-9s  %5s  %5s  %-12s\n"):format("onChunk", row, col, buf))
+end
+
+
+function onEnd( this, errNr, errMsg )
+	if errNr then
+		print("WHOPS:", errNr, errMsg)
+		return
+	end
+	out:write("onEnd\n")
+end
+
+
+function main()
+	local this = {}
+	this.parser = newCsvDec{
+		cls = this,
+		delimCol = "\t",
+		onChunk = onChunk,
+		onEnd = onEnd,
+	}
+	out:write(("%-9s  %5s  %5s  %-12s\n"):format("func", "rowNr", "colNr", "value"))
+	this.parser:write(""
+		.."ID	firstname	lastname\r\n"
+		.."1	Peter	Pan\r\n"
+		.."2	Gotfrid	Stutz\r\n"
+		.."")
+	this.parser:closeSnk()
+end
+
+
+main()
+

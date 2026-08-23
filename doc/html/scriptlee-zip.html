@@ -1,0 +1,175 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - ZIP</h2>
+
+    <p>See also <a href="scriptlee-compress.html">compress</a> which is related.</p>
+
+    <p>Parse a ZIP (streaming) and print details about its structure.</p>
+
+    <code class="lua">
+      local newZipParser = require("scriptlee").zip.newZipParser<br/>
+      local inn, out = io.stdin, io.stdout<br/>
+      local callbacks = {}<br/>
+      <br/>
+      local function main()<br/>
+          local zipParser = newZipParser({<br/>
+              --cls = yourClosure,<br/>
+              onLocalHdr = callbacks.fnLocalHdr,<br/>
+              onLocalName = function(name, cls) out:write("LocalName\n\t\"".. name .."\"\n") end,<br/>
+              onLocalXtra = function(xtra, cls) out:write("LocalXtra\n\t".. xtra:len() .." bytes\n") end,<br/>
+              onDataDescr = callbacks.fnDataDescr,<br/>
+              onBodyPlain = callbacks.fnBodyPlain,<br/>
+              onBodyRaw = callbacks.fnBodyRaw,<br/>
+              onCentralHdr = function(hdr, cls) out:write("CentralHdr\n\t{ ... }\n") end,<br/>
+              onCentralName = function(name, cls) out:write("CentralName\n\t\"".. name .."\"\n") end,<br/>
+              onCentralXtra = function(xtra, cls) out:write("CentralXtra\n\t"..xtra:len().." bytes\n") end,<br/>
+              onEndOfArchiveHdr = function(hdr, cls) out:write("EndOfArchiveHdr\n\t{ ... }\n") end,<br/>
+              onEnd = function(cls) out:write("EndOfArchive\n\n") end,<br/>
+          })<br/>
+          <br/>
+          while true do<br/>
+              local buf = inn:read(65536)<br/>
+              if not buf then break end<br/>
+              zipParser:write(buf)<br/>
+          end<br/>
+          zipParser:closeSnk()<br/>
+      end<br/>
+      <br/>
+      callbacks.fnLocalHdr = function(hdr, cls)<br/>
+          out:write("LocalHdr:\n"<br/>
+              .."\t|- magic           0x"<br/>
+                  .. string.format("%02X", hdr.magic:byte(1))<br/>
+                  .. string.format("%02X", hdr.magic:byte(2))<br/>
+                  .. string.format("%02X", hdr.magic:byte(3))<br/>
+                  .. string.format("%02X", hdr.magic:byte(4))<br/>
+                  .."\n"<br/>
+              .."\t|- versionNeeded   ".. string.format("%10d", hdr.versionNeeded) .."\n"<br/>
+              .."\t|- flags           ".. string.format("    0x%04X", hdr.name_len) .."\n"<br/>
+              .."\t|- compressionMethod ".. string.format("%8d", hdr.compressionMethod) .."\n"<br/>
+              .."\t|- mtime  ".. string.format("%04d-%02d-%02d %02d:%02d:%02d",<br/>
+                  hdr.timeYear, hdr.timeMonth, hdr.timeDay, hdr.timeHrs,<br/>
+                  hdr.timeMin, hdr.timeSec) .."\n"<br/>
+              .."\t|- crc             ".. string.format("0x%08X", hdr.crc) .."\n"<br/>
+              .."\t|- sizeCompr       ".. string.format("%10d", hdr.sizeCompr) .."\n"<br/>
+              .."\t|- sizeOrig        ".. string.format("%10d", hdr.sizeOrig) .."\n"<br/>
+              .."\t|- name_len        ".. string.format("%10d", hdr.name_len) .."\n"<br/>
+              .."\t'- extra_len       ".. string.format("%10d", hdr.extra_len) .."\n"<br/>
+              .."")<br/>
+      end<br/>
+      <br/>
+      callbacks.fnDataDescr = function(descr, cls)<br/>
+          out:write("DataDescr\n"<br/>
+              .."     |- crc      0x"<br/>
+                  .. string.format("%02X", descr.crc:byte(1))<br/>
+                  .. string.format("%02X", descr.crc:byte(2))<br/>
+                  .. string.format("%02X", descr.crc:byte(3))<br/>
+                  .. string.format("%02X", descr.crc:byte(4)) .."\n"<br/>
+              .."     |- sizeOrig  ".. string.format("%9d", descr.sizeOrig) .."\n"<br/>
+              .."     '- sizeCompr ".. string.format("%9d", descr.sizeCompr) .."\n" )<br/>
+      end<br/>
+      <br/>
+      callbacks.fnBodyPlain = function(buf, cls)<br/>
+          out:write("BodyPlain\n\t".. buf:len() .." bytes\n")<br/>
+      end<br/>
+      <br/>
+      callbacks.fnBodyRaw = function(buf, cls)<br/>
+          out:write("BodyRaw\n\t".. buf:len() .." bytes\n")<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+    </code>
+
+    <p>Create a (stored) ZIP to stdout</p>
+
+    <code class="lua">
+    local newZipWriter = require("scriptlee").zip.newZipWriter<br/>
+    <br/>
+    local function main()<br/>
+        local out = io.stdout<br/>
+    <br/>
+        local zipWriter = newZipWriter{<br/>
+            --cls     = yourClosure,<br/>
+            onChunk = function(buf, cls) out:write(buf) end,<br/>
+            onEnd   = function(cls) out:close() end,<br/>
+        }<br/>
+    <br/>
+        zipWriter:beginEntry()<br/>
+        zipWriter:setName("my/file.txt")<br/>
+        zipWriter:setMtime(os.time())<br/>
+        local body = "Contents of the file\n"<br/>
+        zipWriter:setSizeOrig(body:len())<br/>
+        zipWriter:setSizeCompr(body:len())<br/>
+        zipWriter:write(body)<br/>
+    <br/>
+        zipWriter:beginEntry()<br/>
+        zipWriter:setName("two.txt")<br/>
+        zipWriter:setMtime(os.time())<br/>
+        local body = "the-other-file\n"<br/>
+        zipWriter:setSizeOrig(body:len())<br/>
+        zipWriter:setSizeCompr(body:len())<br/>
+        zipWriter:write(body)<br/>
+    <br/>
+        zipWriter:closeSnk()<br/>
+    end<br/>
+    <br/>
+    main()<br/>
+    </code>
+
+    <p>Create a (compressed) ZIP to stdout</p>
+
+    <code class="lua">
+      local newCrc32 = require("scriptlee").newCrc32<br/>
+      local newDeflater = require("scriptlee").compress.newDeflater<br/>
+      local newZipWriter = require("scriptlee").zip.newZipWriter<br/>
+      <br/>
+      local function quickNDirtyCrcFully( str )<br/>
+          local calc = newCrc32()<br/>
+          calc:update(str)<br/>
+          return calc:value()<br/>
+      end<br/>
+      <br/>
+      local function quickNDirtyDeflateFully( innBuf )<br/>
+          local chunks = {}<br/>
+          local deflater = newDeflater{<br/>
+              onChunk = function(b) table.insert(chunks, b) end,<br/>
+          }<br/>
+          deflater:write(innBuf)<br/>
+          deflater:closeSnk()<br/>
+          return table.concat(chunks)<br/>
+      end<br/>
+      <br/>
+      local function main()<br/>
+          local dst = io.stdout<br/>
+      <br/>
+          local zipWriter = newZipWriter{<br/>
+              --cls = yourClosure,<br/>
+              onChunk = function(buf, cls) dst:write(buf) end,<br/>
+              onEnd = function(cls) dst:close() end,<br/>
+          }<br/>
+      <br/>
+          local body = "This is the text we go to store deflate compressed\n"<br/>
+      <br/>
+          zipWriter:beginEntry()<br/>
+          zipWriter:setName("my/compressed/file.txt")<br/>
+          zipWriter:setMtime(os.time())<br/>
+          zipWriter:setSizeOrig(body:len())<br/>
+          zipWriter:setCrc(quickNDirtyCrcFully(body))<br/>
+      <br/>
+          local deflated = quickNDirtyDeflateFully(body)<br/>
+          zipWriter:setComprMethod(8)<br/>
+          zipWriter:setSizeCompr(deflated:len())<br/>
+          zipWriter:write(deflated)<br/>
+      <br/>
+          zipWriter:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+    </code>
+
+  </body>
+</html>
+

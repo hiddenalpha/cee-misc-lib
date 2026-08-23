@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - DollarParser</h2>
+
+    <p>Example usage through Lua API:</p>
+
+    <code class="lua">
+      <br/>
+      local newDollarParser = require("scriptlee").newDollarParser<br/>
+      <br/>
+      local onChunk, onVariable, onEnd, main<br/>
+      <br/>
+      function onChunk( buf, myClosure )<br/>
+          io.write("Got a chunk   : ".. buf .."\n")<br/>
+      end<br/>
+      <br/>
+      function onVariable( buf, myClosure )<br/>
+          myClosure.numVars = myClosure.numVars + 1<br/>
+          io.write("Got a variable: ".. buf .."\n")<br/>
+      end<br/>
+      <br/>
+      function onEnd( myClosure )<br/>
+          io.write("End. Encountered ".. myClosure.numVars .." variables.\n" )<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { numVars = 0 }<br/>
+          local parser = newDollarParser({<br/>
+              cls = myClosure,<br/>
+              onChunk = onChunk,<br/>
+              onVariable = onVariable,<br/>
+              onEnd = onEnd,<br/>
+          });<br/>
+          parser:write("My nam")<br/>
+          parser:write("e is ${name} and we ")<br/>
+          parser:write("are using ${tech}")<br/>
+          parser:closeSnk()<br/>
+      end<br/>
+      <br/>
+      main()<br/>
+      <br/>
+    <code>
+
+  </body>
+</html>
+

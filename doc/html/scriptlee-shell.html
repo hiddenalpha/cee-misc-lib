@@ -1,0 +1,56 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+
+    <h2>Scriptlee - Shell</h2>
+
+    <p>Run a shell command</p>
+
+    <code class="lua">
+      <br/>
+      local onThereWasSomethingOnStdout, onThereWasSomethingOnStderr, main<br/>
+      <br/>
+      <br/>
+      local newShellcmd = require("scriptlee").newShellcmd<br/>
+      local startOrExecute = require("scriptlee").reactor.startOrExecute<br/>
+      <br/>
+      function onThereWasSomethingOnStdout( buf, myClosure )<br/>
+          if buf then<br/>
+              print("STDOUT:\n\t".. (buf:gsub("\n", "\n\t")))<br/>
+          else<br/>
+              -- EOF reached<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      function onThereWasSomethingOnStderr( buf, myClosure )<br/>
+          if buf then<br/>
+              print("STDERR:\n\t".. (buf:gsub("\n", "\n\t")))<br/>
+          else<br/>
+              -- EOF reached<br/>
+          end<br/>
+      end<br/>
+      <br/>
+      function main()<br/>
+          local myClosure = { whateverINeed = 42 }<br/>
+          local askForUser = newShellcmd{<br/>
+              cls = myClosure,<br/>
+              cmd = "whoami",<br/>
+              onStdout = onThereWasSomethingOnStdout,<br/>
+              onStderr = onThereWasSomethingOnStderr,<br/>
+          }<br/>
+          askForUser:start()<br/>
+          --askForUser:write("This goes to childs stdin\n") -- HINT: not impl yet<br/>
+          askForUser:closeSnk()<br/>
+          local exitCode, signal = askForUser:join()<br/>
+          print("code", exitCode)<br/>
+          print("signal", signal)<br/>
+      end<br/>
+      <br/>
+      startOrExecute(main)<br/>
+      <br/>
+    </code>
+
+  <body>
+</html>

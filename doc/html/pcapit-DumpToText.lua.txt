@@ -1,0 +1,71 @@
+#!/usr/bin/env lua
+--[====================================================================[
+
+  Make sure environ `LUA_CPATH` is setup properly. Eg:
+
+  export LUA_CPATH='/abs/path/to/pcap/lib?.so'
+
+  Then just invoke this script. Either via shebang, or via interpreter
+  invocation:
+
+  lua -W  path/to/this/file.lua  some.pcap
+
+  WARN: This is a DEMO script. It is NOT complete by any means!
+  This will print the (NOT compressed) pcap file as text. This script is
+  not meant to be meaningful as of itself. It only should serve as an
+  example how the lib can be used. If your pcap is compressed, you have
+  to decompress it beforehand.
+
+  For completely broken environments:
+  - in place of `export` use `set`.
+  - in place of single quotes ('), use double quotes (").
+  - in place of `lib?.so` use `?.dll` in LUA_CPATH.
+
+--]====================================================================]
+
+
+--local newPcapDumper = require("pcapit").newPcapDumper
+local newPcapParser = require("pcapit").newPcapParser
+local out, log = io.stdout, io.stderr
+
+local httpPortSet = { [80]=true, [8080]=true, [7012]=true, [7013]=true, [7080]=true, }
+
+
+function onFrame( prsr, f )
+	local more = nil
+	--
+	-- Prepare some stuff based on what frame it is
+	if f:trspProtoStr() == "TCP" and httpPortSet[f:trspDstPort()] then
+		-- Likely a HTTP request
+		local httpMthd, httpPath, httpProto = f:trspPayload():match("^([^ ]+) ([^ ]+) ([^\r\n]+)\r?\n")
+		more = httpMthd and (httpMthd .." ".. httpPath)
+	elseif f:trspProtoStr() == "TCP" and httpPortSet[f:trspSrcPort()] then
+		-- Likely a HTTP response
+		local httpProto, httpCode, httpPhrase = f:trspPayload():match("^([^ ]+) ([^ ]+) ([^\r\n]+)\r?\n")
+		more = httpProto and (httpProto .." ".. httpCode .." ".. httpPhrase)
+	end
+	if f:frameNumber() == 1 then
+		out:write(" FrmNr      EpochSec           SrcIP           DstIP         SrcP  DstP     TcpStrm Flgs      SeqNr      AckNr\n")
+	end
+	--
+	-- Print some frame properties
+	local sec, nsec = f:frameArrivalTime()
+	local msg = ("%6d %10d.%09d %-15s %-15s %5d %5d %3s %7d 0x%02X %10d %10d %s"):format(
+		f:frameNumber(), sec, nsec, f:netSrcIpStr(), f:netDstIpStr(), f:trspSrcPort(), f:trspDstPort(),
+		f:trspProtoStr(), f:tcpStream(), f:tcpFlags(), f:tcpSeqNr(), f:tcpAckNr(), more or"")
+	out:write(msg .."\n")
+end
+
+
+function main()
+	local prsr
+	prsr = newPcapParser{
+		dumpFilePath = assert(arg[1], "EINVAL: pcap file as arg missing"),
+		traceTcpStreams = true,
+		onFrame = function(f) onFrame(prsr, f)end,
+	}
+	prsr:resume()
+end
+
+
+main()
